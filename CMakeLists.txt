@@ -36,6 +36,7 @@ target_sources(GlubGlub PRIVATE
   Source/UI/SpeechBox.cpp
   Source/UI/ConfigDrawer.cpp
   Source/UI/HypeMeter.cpp
+  Source/UI/DiscoBall.cpp
 )
 
 target_compile_definitions(GlubGlub PRIVATE

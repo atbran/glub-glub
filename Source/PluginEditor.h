@@ -7,6 +7,7 @@
 #include "UI/SpeechBox.h"
 #include "UI/ConfigDrawer.h"
 #include "UI/HypeMeter.h"
+#include "UI/DiscoBall.h"
 
 class GlubGlubEditor : public juce::AudioProcessorEditor, public juce::Timer
 {
@@ -24,8 +25,13 @@ private:
     SpeechBox speech;
     ConfigDrawer drawer;
     HypeMeter hype;
+    DiscoBall disco;
     juce::Random rng;
     double startTime = 0.0;
+    float partyGlow = 0.0f;
+    float partyHue = 0.55f;
+    float lastPhase = -1.0f;
+    float lastGlow = 0.0f;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GlubGlubEditor)
 };

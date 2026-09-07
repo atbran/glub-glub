@@ -33,3 +33,15 @@
 - [x] 8-bar eased 360 party spin
 - [x] Beat bubble-bursts from mouth at high hype (Bubbles::burst)
 - [x] HYPE meter moved to bottom-right (was covering seaweed)
+
+## M7: Party tier | status: completed
+- [x] Hype metric x1.15 sensitivity; disco ball in at 0.45, RGB tint ramp from 0.70
+- [x] Disco ball: checker light/dark facets, slowly rotating pattern, sweeping specular band, rim star sparkles, drop-in bounce, no swing
+- [x] RGB tint: discrete hue jump per host beat via AudioPlayHead phase; smooth drift fallback when no BPM
+- [x] Beat bob doubled in intensity; tail-spin gated to every 4th bar; flips drop-only (pulse>0.92 + energy>0.5, 4s cooldown)
+- [x] Idle bob +15%
+
+## M8: Layout polish | status: completed
+- [x] Speech box moved to bottom strip (tail points up at fish), can no longer cover the disco ball
+- [x] HYPE meter moved to top-right corner
+- [x] Default speech rate 60s (~once per minute)

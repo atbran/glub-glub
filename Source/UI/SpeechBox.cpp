@@ -35,7 +35,7 @@ void SpeechBox::paint(juce::Graphics& g)
 {
     if (alpha <= 0.02f || current.isEmpty()) return;
     auto b = getLocalBounds().toFloat();
-    juce::Rectangle<float> box(b.getWidth() * 0.08f, 12, b.getWidth() * 0.84f, 56);
+    juce::Rectangle<float> box(b.getWidth() * 0.08f, b.getHeight() - 68.0f, b.getWidth() * 0.84f, 56.0f);
     g.setOpacity(alpha);
     g.setColour(juce::Colour(0xFFFFF8EC));
     g.fillRect(box);
@@ -44,9 +44,9 @@ void SpeechBox::paint(juce::Graphics& g)
     g.setColour(juce::Colour(0xFF333333));
     g.setFont(juce::Font(16.0f, juce::Font::bold));
     g.drawText(current, box.reduced(8), juce::Justification::centred, true);
-    // little tail
+    // little tail pointing up at the fish
     juce::Path tail;
-    tail.addTriangle(box.getX() + 40, box.getBottom(), box.getX() + 58, box.getBottom(), box.getX() + 46, box.getBottom() + 12);
+    tail.addTriangle(box.getX() + 40, box.getY(), box.getX() + 58, box.getY(), box.getX() + 46, box.getY() - 12.0f);
     g.setColour(juce::Colour(0xFFFFF8EC));
     g.fillPath(tail);
     g.setOpacity(1.0f);

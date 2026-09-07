@@ -15,7 +15,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout GlubGlubProcessor::createPar
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> p;
     p.push_back(std::make_unique<juce::AudioParameterFloat>(
-        "speechRate", "Speech Rate", juce::NormalisableRange<float>(30.0f, 90.0f, 1.0f), 45.0f));
+        "speechRate", "Speech Rate", juce::NormalisableRange<float>(30.0f, 90.0f, 1.0f), 60.0f));
     p.push_back(std::make_unique<juce::AudioParameterFloat>(
         "sensitivity", "Vibe Sensitivity", juce::NormalisableRange<float>(0.2f, 2.0f, 0.01f), 1.0f));
     p.push_back(std::make_unique<juce::AudioParameterFloat>(

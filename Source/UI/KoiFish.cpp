@@ -66,8 +66,11 @@ void KoiFish::setVibe(float e, float b, float p, float bp, int inten, int bar)
     if (bar >= 0 && bar != lastBarCount)
     {
         lastBarCount = bar;
-        spinVelocity = 0.45f;
-        tailBurst = 1.0f;
+        if (bar % 4 == 0)
+        {
+            spinVelocity = 0.45f;
+            tailBurst = 1.0f;
+        }
     }
 
     spinAngle += spinVelocity;
@@ -95,12 +98,12 @@ void KoiFish::setVibe(float e, float b, float p, float bp, int inten, int bar)
     }
 
     flipCooldown = juce::jmax(0.0f, flipCooldown - 0.016f);
-    if (pulse > 0.82f && !flipActive && !partyActive && flipCooldown <= 0.0f)
+    if (pulse > 0.92f && energy > 0.5f && !flipActive && !partyActive && flipCooldown <= 0.0f)
     {
         flipActive = true;
         flipT = 0.0f;
         flipMid = false;
-        flipCooldown = 2.4f;
+        flipCooldown = 4.0f;
     }
 
     if (flipActive)
@@ -368,12 +371,12 @@ void KoiFish::paint(juce::Graphics& g)
     float squashX = aScale * (1.0f + 0.10f * pulse);
     float squashY = (1.0f + 0.22f * (1.0f - aScale)) * (1.0f - 0.15f * pulse);
 
-    float hop = -(6.0f + 10.0f * energy) * pulse * pulse
+    float hop = -(7.0f + 12.0f * energy) * pulse * pulse
               - (flipActive ? 10.0f * std::sin(kPi * flipT) : 0.0f);
 
     float bob = beatPhase >= 0.0f
-        ? -std::abs(std::sin(beatPhase * kPi)) * (3.0f + 6.0f * energy)
-        : std::sin(time * (1.2 + 1.8 * energy)) * (1.5f + 3.0f * energy) * (sleepy ? 0.5f : 1.0f);
+        ? -std::abs(std::sin(beatPhase * kPi)) * (8.0f + 14.0f * energy)
+        : std::sin(time * (1.2 + 1.8 * energy)) * (1.7f + 3.45f * energy) * (sleepy ? 0.5f : 1.0f);
 
     float sway = std::sin(time * (0.8 + 1.5 * energy)) * (1.5f + 3.0f * energy) * (sleepy ? 0.5f : 1.0f);
     float cx = w * 0.5f + sway;

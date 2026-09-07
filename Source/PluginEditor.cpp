@@ -11,6 +11,8 @@ GlubGlubEditor::GlubGlubEditor(GlubGlubProcessor& p)
     addAndMakeVisible(speech);
     addAndMakeVisible(drawer);
     addAndMakeVisible(hype);
+    addAndMakeVisible(disco);
+    disco.setInterceptsMouseClicks(false, false);
     drawer.onHeightChanged = [this] { resized(); };
     bubbles.setInterceptsMouseClicks(false, false);
     speech.setInterceptsMouseClicks(false, false);
@@ -42,14 +44,23 @@ void GlubGlubEditor::paint(juce::Graphics& g)
         float x = 30 + i * 40;
         g.fillRect(x, b.getHeight() - 90.0f, 8.0f, 70.0f);
     }
+
+    if (partyGlow > 0.004f)
+    {
+        float beatPulse = proc.vibe.beatPulse.load();
+        float a = juce::jlimit(0.0f, 0.14f, (0.08f + 0.05f * beatPulse) * partyGlow);
+        g.setColour(juce::Colour::fromHSV(partyHue, 0.55f, 0.9f, a));
+        g.fillAll();
+    }
 }
 
 void GlubGlubEditor::resized()
 {
     auto b = getLocalBounds();
     drawer.setBounds(b.removeFromBottom(drawer.getCurrentHeight()));
-    speech.setBounds(b.removeFromTop(84));
-    hype.setBounds(getWidth() - 182, getHeight() - drawer.getCurrentHeight() - 32, 170, 18);
+    speech.setBounds(b.removeFromBottom(84));
+    hype.setBounds(getWidth() - 182, 10, 170, 18);
+    disco.setBounds(getWidth() - 180, 84, 160, 160);
     fish.setBounds(b);
     bubbles.setBounds(b);
 }
@@ -64,13 +75,34 @@ void GlubGlubEditor::timerCallback()
     int bar = proc.vibe.barCount.load();
     bool bubblesOn = proc.apvts.getRawParameterValue("bubblesOn")->load() > 0.5f;
     float speechRate = proc.apvts.getRawParameterValue("speechRate")->load();
+    double now = juce::Time::getMillisecondCounterHiRes() / 1000.0 - startTime;
 
     fish.setVibe(energy, bright, pulse, phase, inten, bar);
-    hype.setHype(juce::jlimit(0.0f, 1.0f, energy * 0.5f + pulse * 0.3f + (float) inten * 0.1f));
+
+    float hypeLevel = juce::jlimit(0.0f, 1.0f, (energy * 0.5f + pulse * 0.3f + (float) inten * 0.1f) * 1.15f);
+    hype.setHype(hypeLevel);
+    disco.update(hypeLevel, now);
+
+    if (phase >= 0.0f)
+    {
+        if (lastPhase >= 0.0f && phase < lastPhase - 0.5f)
+            partyHue = std::fmod(partyHue + 0.27f, 1.0f);
+    }
+    else
+    {
+        partyHue = std::fmod(partyHue + 0.016f * (0.05f + pulse * 0.3f), 1.0f);
+    }
+    lastPhase = phase;
+
+    float glowTarget = hypeLevel > 0.70f ? (hypeLevel - 0.70f) / 0.30f : 0.0f;
+    partyGlow += (glowTarget - partyGlow) * 0.08f;
+    if (partyGlow > 0.004f || lastGlow > 0.004f)
+        repaint();
+    lastGlow = partyGlow;
+
     bubbles.setEnabled(bubblesOn);
     if (bubblesOn && inten == 2 && pulse > 0.75f)
         bubbles.burst(fish.getMouthPosition());
     bubbles.update(energy, fish.getMouthPosition());
-    double now = juce::Time::getMillisecondCounterHiRes() / 1000.0 - startTime;
     speech.update(now, energy, inten, speechRate, rng);
 }
