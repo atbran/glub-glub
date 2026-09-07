@@ -45,3 +45,10 @@
 - [x] Speech box moved to bottom strip (tail points up at fish), can no longer cover the disco ball
 - [x] HYPE meter moved to top-right corner
 - [x] Default speech rate 60s (~once per minute)
+
+## M9: Feel + disco polish | status: completed
+- [x] Beat bob fixed to one dip per quarter note (was double-rate |sin|), hits ON the beat
+- [x] Disco ball repositioned to center-top; 100ms/200ms hype debounce on drop/retract
+- [x] Fish re-centered (sway reduced, cy lowered), another ~15% global slowdown
+- [x] Tail swim 40% slower
+- [x] Disco facet rotation/specular/sparkles slowed

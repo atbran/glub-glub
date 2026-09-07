@@ -92,7 +92,7 @@ void KoiFish::setVibe(float e, float b, float p, float bp, int inten, int bar)
 
     if (partyActive)
     {
-        partyT += 0.016f * 1.4f;
+        partyT += 0.016f * 1.2f;
         if (partyT >= 1.0f)
             partyActive = false;
     }
@@ -108,7 +108,7 @@ void KoiFish::setVibe(float e, float b, float p, float bp, int inten, int bar)
 
     if (flipActive)
     {
-        flipT += 0.016f * 2.2f;
+        flipT += 0.016f * 1.9f;
         if (!flipMid && flipT >= 0.5f)
         {
             facingRight = !facingRight;
@@ -141,8 +141,8 @@ void KoiFish::buildGrid(std::vector<char>& grid)
     const int N = 22;
     std::vector<SpinePt> sp ((size_t) N);
     const float sleepScale = sleepy ? 0.45f : 1.0f;
-    const float bendAmp = juce::jlimit(0.3f, 3.4f, (0.8f + 1.6f * energy + 0.6f * pulse + 1.0f * tailBurst) * sleepScale);
-    const float speed = (1.6f + 1.6f * energy + 2.2f * tailBurst) * (sleepy ? 0.55f : 1.0f);
+    const float bendAmp = juce::jlimit(0.3f, 2.6f, (0.7f + 1.3f * energy + 0.5f * pulse + 0.8f * tailBurst) * sleepScale);
+    const float speed = (0.8f + 0.8f * energy + 1.15f * tailBurst) * (sleepy ? 0.55f : 1.0f);
     const float phase = (float) (time * speed * 2.0 * kPi);
     const float breathe = 1.0f + 0.05f * std::sin((float) time * 1.1f) * (1.0f - energy);
 
@@ -374,16 +374,18 @@ void KoiFish::paint(juce::Graphics& g)
     float hop = -(7.0f + 12.0f * energy) * pulse * pulse
               - (flipActive ? 10.0f * std::sin(kPi * flipT) : 0.0f);
 
-    float bob = beatPhase >= 0.0f
-        ? -std::abs(std::sin(beatPhase * kPi)) * (8.0f + 14.0f * energy)
-        : std::sin(time * (1.2 + 1.8 * energy)) * (1.7f + 3.45f * energy) * (sleepy ? 0.5f : 1.0f);
+    float bob = 0.0f;
+    if (beatPhase >= 0.0f)
+        bob = -std::pow(1.0f - juce::jlimit(0.0f, 1.0f, beatPhase), 1.5f) * (8.0f + 14.0f * energy);
+    else
+        bob = std::sin(time * (1.0 + 1.5 * energy)) * (1.7f + 3.45f * energy) * (sleepy ? 0.5f : 1.0f);
 
-    float sway = std::sin(time * (0.8 + 1.5 * energy)) * (1.5f + 3.0f * energy) * (sleepy ? 0.5f : 1.0f);
+    float sway = std::sin(time * (0.6 + 1.1 * energy)) * (1.2f + 2.4f * energy) * (sleepy ? 0.5f : 1.0f);
     float cx = w * 0.5f + sway;
-    float cy = h * 0.45f + bob + hop;
+    float cy = h * 0.48f + bob + hop;
 
     juce::Graphics::ScopedSaveState state(g);
-    float spinA = std::sin(spinAngle) * 0.55f;
+    float spinA = std::sin(spinAngle) * 0.45f;
     if (partyActive)
     {
         float p = juce::jlimit(0.0f, 1.0f, partyT);
@@ -446,10 +448,10 @@ void KoiFish::paint(juce::Graphics& g)
             g.fillRect(zx, zy + 2.0f * zs, zs * 3.0f, zs);
         };
         float headX = cx + (facingRight ? 1.0f : -1.0f) * w * 0.16f;
-        float rise = std::fmod((float) time * 5.0f, 18.0f);
+        float rise = std::fmod((float) time * 4.0f, 18.0f);
         float alpha1 = juce::jlimit(0.0f, 1.0f, 1.0f - rise / 18.0f) * (0.55f + 0.25f * std::sin((float) time * 2.0f));
         drawZ(headX + 20.0f, cy - 70.0f - rise, (float) pixel * 0.7f, alpha1);
-        float rise2 = std::fmod((float) time * 5.0f + 9.0f, 18.0f);
+        float rise2 = std::fmod((float) time * 4.0f + 9.0f, 18.0f);
         float alpha2 = juce::jlimit(0.0f, 1.0f, 1.0f - rise2 / 18.0f) * 0.7f;
         drawZ(headX + 44.0f, cy - 90.0f - rise2, (float) pixel * 0.55f, alpha2);
     }

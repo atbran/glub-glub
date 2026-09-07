@@ -14,4 +14,7 @@ private:
     bool showing = false;
     double shownAt = 0.0;
     double time = 0.0;
+    double lastNow = 0.0;
+    float aboveTime = 0.0f;
+    float belowTime = 0.0f;
 };

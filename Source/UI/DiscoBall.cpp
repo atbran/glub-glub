@@ -13,16 +13,32 @@ DiscoBall::DiscoBall()
 
 void DiscoBall::update(float hypeLevel, double nowSec)
 {
+    float dt = (float) juce::jlimit(0.0, 0.1, nowSec - lastNow);
+    lastNow = nowSec;
     time = nowSec;
     level = hypeLevel;
 
-    if (!showing && level > 0.45f)
+    if (!showing)
     {
-        showing = true;
-        shownAt = nowSec;
+        aboveTime = level > 0.45f ? aboveTime + dt : 0.0f;
+        if (aboveTime >= 0.10f)
+        {
+            showing = true;
+            shownAt = nowSec;
+            aboveTime = 0.0f;
+            belowTime = 0.0f;
+        }
     }
-    if (showing && level < 0.33f)
-        showing = false;
+    else
+    {
+        belowTime = level < 0.33f ? belowTime + dt : 0.0f;
+        if (belowTime >= 0.20f)
+        {
+            showing = false;
+            belowTime = 0.0f;
+            aboveTime = 0.0f;
+        }
+    }
 
     appear = juce::jlimit(0.0f, 1.0f, appear + (showing ? 0.026f : -0.05f));
 
@@ -56,8 +72,8 @@ void DiscoBall::paint(juce::Graphics& g)
     const int R = 5;
     const int span = 2 * R + 1;
 
-    int shift = (int) (time * 1.6f);
-    float specX = std::fmod((float) time * 2.2f, (float) (span + 6)) - 3.0f;
+    int shift = (int) (time * 1.2f);
+    float specX = std::fmod((float) time * 1.7f, (float) (span + 6)) - 3.0f;
 
     for (int dy = -R; dy <= R; ++dy)
     {
@@ -98,9 +114,9 @@ void DiscoBall::paint(juce::Graphics& g)
 
     for (int i = 0; i < 6; ++i)
     {
-        float tw = 0.5f + 0.5f * std::sin((float) time * 2.6f + i * 1.7f);
+        float tw = 0.5f + 0.5f * std::sin((float) time * 2.2f + i * 1.7f);
         if (tw < 0.25f) continue;
-        float ang = (float) i * (2.0f * kPi / 6.0f) + (float) time * 0.25f;
+        float ang = (float) i * (2.0f * kPi / 6.0f) + (float) time * 0.2f;
         float px = bcx + std::cos(ang) * 6.6f * cf;
         float py = bcy + std::sin(ang) * 6.2f * cf;
         float s = cf * (0.7f + 0.5f * tw);
