@@ -13,7 +13,7 @@
 - [x] Application (Audio Plugin + Standalone)
 - Plugin formats: VST3 + Standalone (JUCE `juce_add_plugin`)
 - Effect type: transparent audio passthrough (no DSP on audio) + sidechain visualizer
-- Goal: cute pixel koi fish "glub-glub", orange-red, dances to audio vibe, idle bubbles, random cute speech
+- Goal: cute pixel koi fish "glub-glub", kohaku-style white/orange-red/black, dances to audio vibe, idle bubbles, random cute speech
 
 ## Infrastructure
 - Container: None
