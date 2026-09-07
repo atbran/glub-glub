@@ -57,3 +57,8 @@
 - [x] Fish rendered via offscreen image (kills rotated-rect AA seams / "segmented fish")
 - [x] Pulse hop suppressed to 25% when host BPM is live (bob stays on-grid at high hype)
 - [x] Disco ball raised to window top (clears fish), fish ride height lowered slightly
+
+## M11: Bob boost + disco hold | status: completed
+- [x] Beat bob +50% motion; idle bob +30%
+- [x] Disco ball holds until hype below 60% for 500ms
+- [x] Disco ball scales with window resize (120-220px, width-proportional)

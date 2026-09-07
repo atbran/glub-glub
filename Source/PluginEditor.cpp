@@ -60,7 +60,9 @@ void GlubGlubEditor::resized()
     drawer.setBounds(b.removeFromBottom(drawer.getCurrentHeight()));
     speech.setBounds(b.removeFromBottom(84));
     hype.setBounds(getWidth() - 182, 10, 170, 18);
-    disco.setBounds((int) (getWidth() * 0.5f) - 80, 0, 160, 120);
+    int discoW = juce::jlimit(120, 220, (int) (getWidth() * 0.32f));
+    int discoH = (int) (discoW * 0.8f);
+    disco.setBounds((int) (getWidth() * 0.5f) - discoW / 2, 0, discoW, discoH);
     fish.setBounds(b);
     bubbles.setBounds(b);
 }

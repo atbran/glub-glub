@@ -31,8 +31,8 @@ void DiscoBall::update(float hypeLevel, double nowSec)
     }
     else
     {
-        belowTime = level < 0.33f ? belowTime + dt : 0.0f;
-        if (belowTime >= 0.20f)
+        belowTime = level < 0.60f ? belowTime + dt : 0.0f;
+        if (belowTime >= 0.50f)
         {
             showing = false;
             belowTime = 0.0f;

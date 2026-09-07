@@ -377,9 +377,9 @@ void KoiFish::paint(juce::Graphics& g)
 
     float bob = 0.0f;
     if (beatPhase >= 0.0f)
-        bob = -std::pow(1.0f - juce::jlimit(0.0f, 1.0f, beatPhase), 1.5f) * (8.0f + 14.0f * energy);
+        bob = -std::pow(1.0f - juce::jlimit(0.0f, 1.0f, beatPhase), 1.5f) * (12.0f + 21.0f * energy);
     else
-        bob = std::sin(time * (1.0 + 1.5 * energy)) * (1.7f + 3.45f * energy) * (sleepy ? 0.5f : 1.0f);
+        bob = std::sin(time * (1.0 + 1.5 * energy)) * (2.2f + 4.5f * energy) * (sleepy ? 0.5f : 1.0f);
 
     float sway = std::sin(time * (0.6 + 1.1 * energy)) * (1.2f + 2.4f * energy) * (sleepy ? 0.5f : 1.0f);
     float cx = w * 0.5f + sway;
