@@ -371,7 +371,8 @@ void KoiFish::paint(juce::Graphics& g)
     float squashX = aScale * (1.0f + 0.10f * pulse);
     float squashY = (1.0f + 0.22f * (1.0f - aScale)) * (1.0f - 0.15f * pulse);
 
-    float hop = -(7.0f + 12.0f * energy) * pulse * pulse
+    float hopScale = beatPhase >= 0.0f ? 0.25f : 1.0f;
+    float hop = -(7.0f + 12.0f * energy) * pulse * pulse * hopScale
               - (flipActive ? 10.0f * std::sin(kPi * flipT) : 0.0f);
 
     float bob = 0.0f;
@@ -382,9 +383,8 @@ void KoiFish::paint(juce::Graphics& g)
 
     float sway = std::sin(time * (0.6 + 1.1 * energy)) * (1.2f + 2.4f * energy) * (sleepy ? 0.5f : 1.0f);
     float cx = w * 0.5f + sway;
-    float cy = h * 0.48f + bob + hop;
+    float cy = h * 0.52f + bob + hop;
 
-    juce::Graphics::ScopedSaveState state(g);
     float spinA = std::sin(spinAngle) * 0.45f;
     if (partyActive)
     {
@@ -392,7 +392,6 @@ void KoiFish::paint(juce::Graphics& g)
         float eased = p < 0.5f ? 4.0f * p * p * p : 1.0f - std::pow(-2.0f * p + 2.0f, 3.0f) * 0.5f;
         spinA += eased * 2.0f * kPi;
     }
-    g.addTransform(juce::AffineTransform::rotation(spinA, cx, cy));
 
     int pixel = juce::jmax(5, (int) (juce::jmin(w, h) / (float) (GRID_W + 8)));
     float ox = cx - GRID_W * 0.5f * pixel;
@@ -401,19 +400,30 @@ void KoiFish::paint(juce::Graphics& g)
     auto projectX = [&](float sxg) { return GRID_W * 0.5f + (sxg - GRID_W * 0.5f) * squashX; };
     auto projectY = [&](float syg) { return GRID_H * 0.5f + (syg - GRID_H * 0.5f) * squashY; };
 
-    for (int gy = 0; gy < GRID_H; ++gy)
+    if (spriteImg.isNull() || spriteImg.getWidth() != (int) w || spriteImg.getHeight() != (int) h)
+        spriteImg = juce::Image(juce::Image::ARGB, (int) w, (int) h, true);
+    spriteImg.clear(spriteImg.getBounds());
+
     {
-        for (int gx = 0; gx < GRID_W; ++gx)
+        juce::Graphics ig(spriteImg);
+        for (int gy = 0; gy < GRID_H; ++gy)
         {
-            char c = grid[(size_t) gy * GRID_W + gx];
-            if (c == '.') continue;
-            int sx = facingRight ? gx : (GRID_W - 1 - gx);
-            float px = ox + std::round(projectX((float) sx)) * (float) pixel;
-            float py = oy + std::round(projectY((float) gy)) * (float) pixel;
-            g.setColour(colourFor(c));
-            g.fillRect(px, py, (float) pixel, (float) pixel);
+            for (int gx = 0; gx < GRID_W; ++gx)
+            {
+                char c = grid[(size_t) gy * GRID_W + gx];
+                if (c == '.') continue;
+                int sx = facingRight ? gx : (GRID_W - 1 - gx);
+                float px = ox + std::round(projectX((float) sx)) * (float) pixel;
+                float py = oy + std::round(projectY((float) gy)) * (float) pixel;
+                ig.setColour(colourFor(c));
+                ig.fillRect(px, py, (float) pixel, (float) pixel);
+            }
         }
     }
+
+    juce::Graphics::ScopedSaveState state(g);
+    g.addTransform(juce::AffineTransform::rotation(spinA, cx, cy));
+    g.drawImageAt(spriteImg, 0, 0);
 
     {
         int msx = facingRight ? mouthGX : (GRID_W - 1 - mouthGX);

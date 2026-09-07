@@ -30,6 +30,7 @@ private:
     int lastPartyBar = -1;
     int mouthGX = 33, mouthGY = 13;
     juce::Point<float> mouthPos { 0, 0 };
+    juce::Image spriteImg;
 
     void buildGrid(std::vector<char>& grid);
 };

@@ -52,3 +52,8 @@
 - [x] Fish re-centered (sway reduced, cy lowered), another ~15% global slowdown
 - [x] Tail swim 40% slower
 - [x] Disco facet rotation/specular/sparkles slowed
+
+## M10: Timing + rendering fixes | status: completed
+- [x] Fish rendered via offscreen image (kills rotated-rect AA seams / "segmented fish")
+- [x] Pulse hop suppressed to 25% when host BPM is live (bob stays on-grid at high hype)
+- [x] Disco ball raised to window top (clears fish), fish ride height lowered slightly
