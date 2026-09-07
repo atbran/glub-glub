@@ -7,20 +7,27 @@ Bubbles::Bubbles() { pool.reserve(40); }
 void Bubbles::update(float energy, juce::Point<float> mouth)
 {
     // idle-heavy: spawn more when calm
-    float spawnP = energy < 0.3f ? 0.25f : 0.05f;
+    float spawnP = energy < 0.3f ? 0.22f : 0.05f;
     if (enabled && pool.size() < 36 && rng.nextFloat() < spawnP)
-        pool.push_back({ mouth.x + rng.nextFloat() * 8 - 4, mouth.y, 2 + rng.nextFloat() * 4, 20 + rng.nextFloat() * 30, rng.nextFloat() * 6.28f, 0.8f });
+        pool.push_back({ mouth.x + rng.nextFloat() * 8 - 4, mouth.y, 2 + rng.nextFloat() * 4, 15 + rng.nextFloat() * 22, rng.nextFloat() * 6.28f, 0.8f });
 
     for (auto& p : pool)
     {
         p.y -= p.speed * 0.016f;
-        p.wobble += 0.06f;
+        p.wobble += 0.045f;
         p.x += std::sin(p.wobble) * 0.4f;
-        p.alpha -= 0.002f;
+        p.alpha -= 0.0016f;
     }
     pool.erase(std::remove_if(pool.begin(), pool.end(),
         [](const P& p) { return p.alpha <= 0 || p.y < -10; }), pool.end());
     repaint();
+}
+
+void Bubbles::burst(juce::Point<float> mouth)
+{
+    if (!enabled || pool.size() > 32) return;
+    for (int i = 0; i < 3; ++i)
+        pool.push_back({ mouth.x + rng.nextFloat() * 10 - 5, mouth.y + rng.nextFloat() * 4, 2 + rng.nextFloat() * 3, 24 + rng.nextFloat() * 26, rng.nextFloat() * 6.28f, 0.9f });
 }
 
 void Bubbles::paint(juce::Graphics& g)

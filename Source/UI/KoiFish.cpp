@@ -1,135 +1,62 @@
 #include "KoiFish.h"
 #include <cmath>
+#include <utility>
 
 namespace
 {
-    // Kohaku pixel palette: white body, orange-red patches, black speckles, amber fins.
-    const auto outline = juce::Colour(0xFF160D0A);
-    const auto white = juce::Colour(0xFFFFF5DF);
-    const auto red = juce::Colour(0xFFD84018);
-    const auto black = juce::Colour(0xFF1A1A1A);
-    const auto fin = juce::Colour(0xFFCFA038);
+    constexpr float kPi = 3.14159265f;
 
-    bool inBodyEllipse(int gx, int gy)
+    const juce::Colour colOutline { 0xFF261712 };
+    const juce::Colour colWBase   { 0xFFFDF6E3 };
+    const juce::Colour colWLight  { 0xFFFFFEF9 };
+    const juce::Colour colWDark   { 0xFFE3D2A8 };
+    const juce::Colour colRBase   { 0xFFE8491D };
+    const juce::Colour colRLight  { 0xFFFF8148 };
+    const juce::Colour colRDark   { 0xFFAE3410 };
+    const juce::Colour colFBase   { 0xFFD9A441 };
+    const juce::Colour colFLight  { 0xFFF4CD74 };
+    const juce::Colour colFDark   { 0xFFA5762A };
+    const juce::Colour colEye     { 0xFF191411 };
+    const juce::Colour colGlint   { 0xFFFFFFFF };
+    const juce::Colour colBlush   { 0xFFF7A097 };
+    const juce::Colour colMouth   { 0xFF46281C };
+    const juce::Colour colSpot    { 0xFF33201A };
+    const juce::Colour colBarbel  { 0xFF6B452E };
+
+    juce::Colour colourFor(char c)
     {
-        const double rx = 12.5, ry = 6.4, cx = 19.5, cy = 11.0;
-        double dx = (gx + 0.5 - cx) / rx;
-        double dy = (gy + 0.5 - cy) / ry;
-        return dx * dx + dy * dy <= 1.0;
+        switch (c)
+        {
+            case 'O': return colOutline;
+            case 'w': return colWBase;
+            case '1': return colWLight;
+            case '2': return colWDark;
+            case 'r': return colRBase;
+            case '3': return colRLight;
+            case '4': return colRDark;
+            case 'f': return colFBase;
+            case '5': return colFLight;
+            case '6': return colFDark;
+            case 'e': return colEye;
+            case 'g': return colGlint;
+            case 'b': return colBlush;
+            case 'm': return colMouth;
+            case 's': return colSpot;
+            case 'k': return colBarbel;
+            default: break;
+        }
+        return juce::Colours::transparentBlack;
     }
 
-    bool inUpperTail(int gx, int gy)
+    bool isFaceChar(char c)
     {
-        if (gx < 0 || gx > 7) return false;
-        double top = 2.0 + gx;
-        double bottom = 10.0 - gx * 0.6;
-        return gy + 0.5 >= top && gy + 0.5 <= bottom;
+        return c == 'e' || c == 'g' || c == 'm' || c == 'b' || c == 'k';
     }
 
-    bool inLowerTail(int gx, int gy)
-    {
-        if (gx < 0 || gx > 7) return false;
-        double top = 11.2;
-        double bottom = 21.0 - gx * 1.15;
-        return gy + 0.5 >= top && gy + 0.5 <= bottom;
-    }
-
-    bool inDorsalFin(int gx, int gy)
-    {
-        if (gx < 14 || gx > 20) return false;
-        double peakY = 5.0;
-        double baseY = 9.0;
-        return gy + 0.5 >= peakY + std::abs(gx - 17) * 0.8 - 3.0 && gy + 0.5 <= baseY;
-    }
-
-    bool inPectoralFin(int gx, int gy)
-    {
-        if (gx < 22 || gx > 27) return false;
-        double center = 24.5;
-        double top = 15.0 + std::abs((double) gx - center) * 0.6;
-        double bottom = 21.0 - std::abs((double) gx - center) * 0.2;
-        return gy + 0.5 >= top && gy + 0.5 <= bottom;
-    }
-
-    bool inBarbel(int gx, int gy)
-    {
-        if (gx == 31) return gy == 14 || gy == 16;
-        if (gx == 32) return gy == 15 || gy == 17;
-        if (gx == 33) return gy == 16 || gy == 18;
-        return false;
-    }
+    struct SpinePt { float x, y, r, u; };
 }
 
 KoiFish::KoiFish() {}
-
-bool KoiFish::maskAt(int gx, int gy) const
-{
-    return inBodyEllipse(gx, gy)
-        || inUpperTail(gx, gy)
-        || inLowerTail(gx, gy)
-        || inDorsalFin(gx, gy)
-        || inPectoralFin(gx, gy)
-        || inBarbel(gx, gy);
-}
-
-char KoiFish::styleAt(int gx, int gy) const
-{
-    if (!maskAt(gx, gy)) return '.';
-
-    // barbels are dark
-    if (inBarbel(gx, gy))
-        return 'K';
-
-    // outline: any exposed edge pixel -> black
-    static const int dirs[4][2] = { {1,0}, {-1,0}, {0,1}, {0,-1} };
-    for (auto& d : dirs)
-    {
-        int nx = gx + d[0], ny = gy + d[1];
-        if (nx < 0 || nx >= SPRITE_W || ny < 0 || ny >= SPRITE_H || !maskAt(nx, ny))
-            return 'B';
-    }
-
-    // eye
-    if (gx == 30 && gy == 8)
-        return 'K';
-
-    // fins
-    if (inDorsalFin(gx, gy) || inPectoralFin(gx, gy) || inUpperTail(gx, gy) || inLowerTail(gx, gy))
-        return 'T';
-
-    // body: kohaku red patches along upper body, white belly, sparse black speckles
-    bool upperBody = gy <= 10;
-    bool patch = false;
-    if (inBodyEllipse(gx, gy) && upperBody)
-    {
-        // deterministic flowing patch bands
-        float waveBand = std::sin(gx * 0.42f) + std::cos(gy * 0.55f);
-        patch = waveBand > 0.65f;
-    }
-
-    unsigned hash = (unsigned) (gx * 31 + gy * 17);
-    if (inBodyEllipse(gx, gy) && hash % 29 == 0)
-        return 'K';
-
-    if (patch)
-        return 'R';
-
-    return 'W';
-}
-
-float KoiFish::undulationOffset(int gx, float swimSpeed, float amp) const
-{
-    // traveling wave from head to tail; tail lags more than head
-    float tailness = juce::jlimit(0.0f, 1.0f, 1.0f - (float) gx / (SPRITE_W - 1));
-    float phase = static_cast<float> (time * swimSpeed * 2.0 * 3.14159265 - tailness * 2.1);
-    return std::sin(phase) * amp * (0.20f + 0.80f * tailness);
-}
-
-void KoiFish::drawPixel(juce::Graphics& g, float sx, float sy, int pixel, juce::Colour c, float ox, float oy) const
-{
-    g.setColour(c);
-    g.fillRect(ox + sx * (float) pixel, oy + sy * (float) pixel, (float) pixel, (float) pixel);
-}
 
 void KoiFish::setVibe(float e, float b, float p, float bp, int inten, int bar)
 {
@@ -139,20 +66,293 @@ void KoiFish::setVibe(float e, float b, float p, float bp, int inten, int bar)
     if (bar >= 0 && bar != lastBarCount)
     {
         lastBarCount = bar;
-        spinVelocity = 0.62f;
+        spinVelocity = 0.45f;
+        tailBurst = 1.0f;
     }
 
     spinAngle += spinVelocity;
-    spinVelocity *= 0.90f;
+    spinVelocity *= 0.925f;
+    tailBurst *= 0.95f;
 
-    // only flip on strong beats; idle remains readable
-    if (pulse > 0.9f && ((int) (time * 10) % 40 == 0))
-        facingRight = !facingRight;
+    if (energy < 0.06f && pulse < 0.12f)
+        calmTime += 0.016f;
+    else
+        calmTime = 0.0f;
+    sleepy = calmTime > 6.0f;
+
+    if (bar > 0 && bar % 8 == 0 && bar != lastPartyBar)
+    {
+        lastPartyBar = bar;
+        partyActive = true;
+        partyT = 0.0f;
+    }
+
+    if (partyActive)
+    {
+        partyT += 0.016f * 1.4f;
+        if (partyT >= 1.0f)
+            partyActive = false;
+    }
+
+    flipCooldown = juce::jmax(0.0f, flipCooldown - 0.016f);
+    if (pulse > 0.82f && !flipActive && !partyActive && flipCooldown <= 0.0f)
+    {
+        flipActive = true;
+        flipT = 0.0f;
+        flipMid = false;
+        flipCooldown = 2.4f;
+    }
+
+    if (flipActive)
+    {
+        flipT += 0.016f * 2.2f;
+        if (!flipMid && flipT >= 0.5f)
+        {
+            facingRight = !facingRight;
+            flipMid = true;
+        }
+        if (flipT >= 1.0f)
+            flipActive = false;
+    }
 
     repaint();
 }
 
 juce::Point<float> KoiFish::getMouthPosition() const { return mouthPos; }
+
+void KoiFish::buildGrid(std::vector<char>& grid)
+{
+    grid.assign((size_t) GRID_W * GRID_H, '.');
+
+    auto set = [&](int x, int y, char c)
+    {
+        if (x < 0 || x >= GRID_W || y < 0 || y >= GRID_H) return;
+        grid[(size_t) y * GRID_W + x] = c;
+    };
+    auto get = [&](int x, int y) -> char
+    {
+        if (x < 0 || x >= GRID_W || y < 0 || y >= GRID_H) return '.';
+        return grid[(size_t) y * GRID_W + x];
+    };
+
+    const int N = 22;
+    std::vector<SpinePt> sp ((size_t) N);
+    const float sleepScale = sleepy ? 0.45f : 1.0f;
+    const float bendAmp = juce::jlimit(0.3f, 3.4f, (0.8f + 1.6f * energy + 0.6f * pulse + 1.0f * tailBurst) * sleepScale);
+    const float speed = (1.6f + 1.6f * energy + 2.2f * tailBurst) * (sleepy ? 0.55f : 1.0f);
+    const float phase = (float) (time * speed * 2.0 * kPi);
+    const float breathe = 1.0f + 0.05f * std::sin((float) time * 1.1f) * (1.0f - energy);
+
+    for (int i = 0; i < N; ++i)
+    {
+        float u = (float) i / (float) (N - 1);
+        float ampU = bendAmp * (0.12f + 0.88f * (1.0f - u));
+        sp[(size_t) i] = { 7.0f + u * 22.0f,
+                           11.0f + ampU * std::sin(phase - u * 4.4f),
+                           (1.4f + 4.2f * std::pow(u, 0.6f)) * breathe,
+                           u };
+    }
+
+    auto spineAt = [&](float u) -> SpinePt
+    {
+        u = juce::jlimit(0.0f, 1.0f, u);
+        float fi = u * (float) (N - 1);
+        int i0 = (int) fi;
+        int i1 = juce::jmin(N - 1, i0 + 1);
+        float f = fi - (float) i0;
+        auto& a = sp[(size_t) i0];
+        auto& b = sp[(size_t) i1];
+        return { a.x + (b.x - a.x) * f, a.y + (b.y - a.y) * f, a.r + (b.r - a.r) * f, u };
+    };
+
+    auto normalAt = [&](float u) -> std::pair<float, float>
+    {
+        auto p0 = spineAt(juce::jlimit(0.0f, 1.0f, u - 0.04f));
+        auto p1 = spineAt(juce::jlimit(0.0f, 1.0f, u + 0.04f));
+        float dx = p1.x - p0.x, dy = p1.y - p0.y;
+        float len = std::sqrt(dx * dx + dy * dy);
+        if (len < 1e-4f) return { 0.0f, -1.0f };
+        return { dy / len, -dx / len };
+    };
+
+    // tail fan (stamped first so the body welds the joint shut)
+    {
+        const SpinePt j = sp[0];
+        set((int) j.x - 1, (int) j.y, 'f');
+        set((int) j.x - 2, (int) j.y, 'f');
+
+        float wag = (0.35f + 0.45f * energy + 0.9f * tailBurst) * std::sin(phase * 1.12f + 0.8f);
+
+        auto lobe = [&](float vy)
+        {
+            float dx = -1.0f, dy = vy;
+            float len = std::sqrt(dx * dx + dy * dy);
+            dx /= len; dy /= len;
+            float c = std::cos(wag), s = std::sin(wag);
+            float rdx = dx * c - dy * s, rdy = dx * s + dy * c;
+            float px = -rdy, py = rdx;
+            const int L = 9;
+            for (int st = 1; st <= L; ++st)
+            {
+                float fs = (float) st;
+                float halfW = 0.6f + 2.4f * std::sin(kPi * 0.92f * fs / (float) L);
+                float cxg = j.x + rdx * fs, cyg = j.y + rdy * fs;
+                int wHalf = (int) std::round(halfW);
+                for (int o = -wHalf; o <= wHalf; ++o)
+                {
+                    int gx = (int) std::round(cxg + px * (float) o);
+                    int gy = (int) std::round(cyg + py * (float) o);
+                    char cc = 'f';
+                    float side = py * (float) o;
+                    if (side < -0.2f) cc = '5';
+                    else if (side > 0.2f) cc = '6';
+                    if (st == L && std::abs(o) == wHalf) cc = '6';
+                    set(gx, gy, cc);
+                }
+            }
+        };
+
+        lobe(-0.85f);
+        lobe(0.85f);
+    }
+
+    // body discs along the bending spine
+    for (int i = 0; i < N; ++i)
+    {
+        const SpinePt& s = sp[(size_t) i];
+        int R = (int) std::ceil(s.r);
+        for (int dy = -R; dy <= R; ++dy)
+        {
+            for (int dx = -R; dx <= R; ++dx)
+            {
+                float fx = (float) dx, fy = (float) dy;
+                if (fx * fx + fy * fy > s.r * s.r) continue;
+                int gx = (int) std::round(s.x) + dx;
+                int gy = (int) std::round(s.y) + dy;
+                float t = fy / s.r;
+                float u = s.u;
+
+                bool red = (u > 0.78f && t > -0.95f && t < 0.42f)
+                        || (u > 0.42f && u < 0.62f && t < 0.40f)
+                        || (u > 0.10f && u < 0.27f && t > -0.10f);
+
+                char c;
+                if (t > 0.55f) c = red ? '4' : '2';
+                else if (t < -0.50f) c = red ? '3' : '1';
+                else c = red ? 'r' : 'w';
+                set(gx, gy, c);
+            }
+        }
+    }
+
+    // sumi spots, only over red cells
+    auto spot = [&](float u, float t, float rad)
+    {
+        auto p = spineAt(u);
+        auto n = normalAt(u);
+        float cxg = p.x - n.first * (t * p.r);
+        float cyg = p.y - n.second * (t * p.r);
+        int R = (int) std::ceil(rad);
+        for (int dy = -R; dy <= R; ++dy)
+        {
+            for (int dx = -R; dx <= R; ++dx)
+            {
+                if ((float) (dx * dx + dy * dy) > rad * rad) continue;
+                int gx = (int) std::round(cxg) + dx;
+                int gy = (int) std::round(cyg) + dy;
+                char cur = get(gx, gy);
+                if (cur == 'r' || cur == '3' || cur == '4')
+                    set(gx, gy, 's');
+            }
+        }
+    };
+    spot(0.70f, -0.15f, 1.0f);
+    spot(0.52f, 0.45f, 0.9f);
+    spot(0.20f, 0.20f, 0.8f);
+
+    // dorsal fin
+    {
+        auto p = spineAt(0.50f);
+        auto n = normalAt(0.50f);
+        int bx = (int) std::round(p.x + n.first * (p.r - 0.5f));
+        int by = (int) std::round(p.y + n.second * (p.r - 0.5f));
+        int hh = juce::jlimit(2, 4, 3 + (int) std::round(0.8f * std::sin(phase * 1.05f)));
+        set(bx, by - hh, '5');
+        for (int ry = by - hh + 1; ry <= by - 1; ++ry)
+            for (int rx = bx - 1; rx <= bx + 1; ++rx)
+                set(rx, ry, 'f');
+    }
+
+    // pectoral fin
+    {
+        auto p = spineAt(0.72f);
+        auto n = normalAt(0.72f);
+        int bx = (int) std::round(p.x - n.first * (p.r - 0.5f));
+        int by = (int) std::round(p.y - n.second * (p.r - 0.5f));
+        bx += (int) std::round(0.9f * pulse) + (int) std::round(0.5f * std::sin(phase * 1.3f));
+        set(bx - 1, by, 'f');
+        set(bx, by, 'f');
+        set(bx + 1, by, 'f');
+        set(bx, by + 1, 'f');
+        set(bx + 1, by + 1, 'f');
+        set(bx + 2, by + 1, 'f');
+        set(bx + 1, by + 2, '6');
+        set(bx + 2, by + 2, '6');
+    }
+
+    // face
+    {
+        auto p = spineAt(0.86f);
+        auto n = normalAt(0.86f);
+        int ex = (int) std::round(p.x + n.first * (0.35f * p.r));
+        int ey = (int) std::round(p.y + n.second * (0.35f * p.r));
+        if (sleepy)
+        {
+            set(ex - 1, ey, 'e');
+            set(ex, ey, 'e');
+            set(ex + 1, ey, 'e');
+            set(ex + 2, ey, 'e');
+        }
+        else
+        {
+            for (int ry = -1; ry <= 1; ++ry)
+                for (int rx = 0; rx <= 1; ++rx)
+                    set(ex + rx, ey + ry, 'e');
+            set(ex, ey - 1, 'g');
+        }
+
+        auto pm = spineAt(1.0f);
+        int mx = (int) std::round(pm.x + pm.r * 0.78f);
+        int my = (int) std::round(pm.y + pm.r * 0.42f);
+        set(mx - 1, my, 'm');
+        set(mx, my, 'm');
+        set(mx + 1, my, 'k');
+        set(mx + 1, my + 1, 'k');
+        mouthGX = mx - 1;
+        mouthGY = my;
+
+        auto pb = spineAt(0.93f);
+        int bxx = (int) std::round(pb.x);
+        int byy = (int) std::round(pb.y + pb.r * 0.55f);
+        set(bxx, byy, 'b');
+        set(bxx + 1, byy, 'b');
+    }
+
+    // outline pass
+    std::vector<char> outlined = grid;
+    for (int y = 0; y < GRID_H; ++y)
+    {
+        for (int x = 0; x < GRID_W; ++x)
+        {
+            char c = grid[(size_t) y * GRID_W + x];
+            if (c == '.' || isFaceChar(c)) continue;
+            if (get(x + 1, y) == '.' || get(x - 1, y) == '.'
+                || get(x, y + 1) == '.' || get(x, y - 1) == '.')
+                outlined[(size_t) y * GRID_W + x] = 'O';
+        }
+    }
+    grid.swap(outlined);
+}
 
 void KoiFish::paint(juce::Graphics& g)
 {
@@ -160,64 +360,94 @@ void KoiFish::paint(juce::Graphics& g)
     float w = bounds.getWidth(), h = bounds.getHeight();
     if (w <= 0 || h <= 0) return;
 
-    float bounce = 0.0f;
-    if (beatPhase >= 0.0f)
-        bounce = -std::abs(std::sin(beatPhase * 3.14159f)) * (5.0f + energy * 12.0f);
-    else
-        bounce = std::sin(time * (2.0 + energy * 5.0)) * (2.5f + energy * 7.0f) - pulse * 5.0f;
+    std::vector<char> grid;
+    buildGrid(grid);
 
-    float sway = std::sin(time * (1.2 + energy * 3.0)) * (2.0f + energy * 5.0f);
+    float flipScale = flipActive ? std::cos(kPi * flipT) : 1.0f;
+    float aScale = std::max(0.12f, std::abs(flipScale));
+    float squashX = aScale * (1.0f + 0.10f * pulse);
+    float squashY = (1.0f + 0.22f * (1.0f - aScale)) * (1.0f - 0.15f * pulse);
 
+    float hop = -(6.0f + 10.0f * energy) * pulse * pulse
+              - (flipActive ? 10.0f * std::sin(kPi * flipT) : 0.0f);
+
+    float bob = beatPhase >= 0.0f
+        ? -std::abs(std::sin(beatPhase * kPi)) * (3.0f + 6.0f * energy)
+        : std::sin(time * (1.2 + 1.8 * energy)) * (1.5f + 3.0f * energy) * (sleepy ? 0.5f : 1.0f);
+
+    float sway = std::sin(time * (0.8 + 1.5 * energy)) * (1.5f + 3.0f * energy) * (sleepy ? 0.5f : 1.0f);
     float cx = w * 0.5f + sway;
-    float cy = h * 0.42f + bounce;
+    float cy = h * 0.45f + bob + hop;
 
     juce::Graphics::ScopedSaveState state(g);
-    g.addTransform(juce::AffineTransform::rotation(std::sin(spinAngle) * 0.55f, cx, cy));
-
-    int pixel = juce::jmax(4, (int) (juce::jmin(w, h) / (SPRITE_W + 12)));
-    float ox = cx - SPRITE_W * 0.5f * pixel;
-    float oy = cy - SPRITE_H * 0.5f * pixel;
-
-    float swimSpeed = 0.8f + energy * 3.2f;
-    float amp = 0.35f + energy * 1.4f + pulse * 0.35f;
-
-    for (int gy = 0; gy < SPRITE_H; ++gy)
+    float spinA = std::sin(spinAngle) * 0.55f;
+    if (partyActive)
     {
-        for (int gx = 0; gx < SPRITE_W; ++gx)
+        float p = juce::jlimit(0.0f, 1.0f, partyT);
+        float eased = p < 0.5f ? 4.0f * p * p * p : 1.0f - std::pow(-2.0f * p + 2.0f, 3.0f) * 0.5f;
+        spinA += eased * 2.0f * kPi;
+    }
+    g.addTransform(juce::AffineTransform::rotation(spinA, cx, cy));
+
+    int pixel = juce::jmax(5, (int) (juce::jmin(w, h) / (float) (GRID_W + 8)));
+    float ox = cx - GRID_W * 0.5f * pixel;
+    float oy = cy - GRID_H * 0.5f * pixel;
+
+    auto projectX = [&](float sxg) { return GRID_W * 0.5f + (sxg - GRID_W * 0.5f) * squashX; };
+    auto projectY = [&](float syg) { return GRID_H * 0.5f + (syg - GRID_H * 0.5f) * squashY; };
+
+    for (int gy = 0; gy < GRID_H; ++gy)
+    {
+        for (int gx = 0; gx < GRID_W; ++gx)
         {
-            char c = styleAt(gx, gy);
+            char c = grid[(size_t) gy * GRID_W + gx];
             if (c == '.') continue;
-
-            int sx = facingRight ? gx : (SPRITE_W - 1 - gx);
-            float dy = undulationOffset(gx, swimSpeed, amp);
-            juce::Colour col = outline;
-            if (c == 'W') col = white;
-            else if (c == 'R') col = red;
-            else if (c == 'K') col = black;
-            else if (c == 'T') col = fin;
-
-            if (intensity == 2 && c != 'B' && (gx + gy * 5) % 11 == 0)
-                col = col.brighter(0.25f);
-
-            drawPixel(g, (float) sx, (float) gy + dy, pixel, col, ox, oy);
+            int sx = facingRight ? gx : (GRID_W - 1 - gx);
+            float px = ox + std::round(projectX((float) sx)) * (float) pixel;
+            float py = oy + std::round(projectY((float) gy)) * (float) pixel;
+            g.setColour(colourFor(c));
+            g.fillRect(px, py, (float) pixel, (float) pixel);
         }
     }
 
-    // mouth position uses head coordinate after the same undulation math
-    int sourceGX = SPRITE_W - 1;
-    int sourceGY = 10;
-    float mouthScreenGX = facingRight ? (float) (SPRITE_W - 1) : 0.0f;
-    float mouthDY = undulationOffset(sourceGX, swimSpeed, amp);
-    mouthPos = { ox + mouthScreenGX * pixel, oy + (sourceGY + mouthDY) * pixel };
+    {
+        int msx = facingRight ? mouthGX : (GRID_W - 1 - mouthGX);
+        float px = ox + std::round(projectX((float) msx)) * (float) pixel;
+        float py = oy + std::round(projectY((float) mouthGY)) * (float) pixel;
+        float dxp = px - cx, dyp = py - cy;
+        float ca = std::cos(spinA), sa = std::sin(spinA);
+        mouthPos = { cx + dxp * ca - dyp * sa, cy + dxp * sa + dyp * ca };
+    }
 
     if (intensity == 2)
     {
-        g.setColour(juce::Colour(0xFFFFF3D0));
-        for (int i = 0; i < 5; ++i)
+        for (int i = 0; i < 3; ++i)
         {
-            float sx = cx + std::cos(time * 2.7 + i * 1.25) * w * 0.30f;
-            float sy = cy + std::sin(time * 2.1 + i * 1.85) * h * 0.28f;
-            g.fillRect(sx, sy, (float) pixel * 0.55f, (float) pixel * 0.55f);
+            float tw = 0.5f + 0.5f * std::sin((float) time * 3.2f + i * 2.3f);
+            g.setColour(juce::Colour(0xFFFFE9A8).withAlpha(0.20f + 0.55f * tw));
+            float px = cx + std::cos((float) time * 1.0f + i * 2.6f) * w * 0.33f;
+            float py = cy + std::sin((float) time * 0.8f + i * 1.7f) * h * 0.30f;
+            float s = (float) pixel * 0.9f;
+            g.fillRect(px - s, py - s * 0.22f, s * 2.0f, s * 0.44f);
+            g.fillRect(px - s * 0.22f, py - s, s * 0.44f, s * 2.0f);
         }
+    }
+
+    if (sleepy)
+    {
+        auto drawZ = [&](float zx, float zy, float zs, float alpha)
+        {
+            g.setColour(juce::Colour(0xFFBEE3F0).withAlpha(alpha));
+            g.fillRect(zx, zy, zs * 3.0f, zs);
+            g.fillRect(zx + zs, zy + zs, zs, zs);
+            g.fillRect(zx, zy + 2.0f * zs, zs * 3.0f, zs);
+        };
+        float headX = cx + (facingRight ? 1.0f : -1.0f) * w * 0.16f;
+        float rise = std::fmod((float) time * 5.0f, 18.0f);
+        float alpha1 = juce::jlimit(0.0f, 1.0f, 1.0f - rise / 18.0f) * (0.55f + 0.25f * std::sin((float) time * 2.0f));
+        drawZ(headX + 20.0f, cy - 70.0f - rise, (float) pixel * 0.7f, alpha1);
+        float rise2 = std::fmod((float) time * 5.0f + 9.0f, 18.0f);
+        float alpha2 = juce::jlimit(0.0f, 1.0f, 1.0f - rise2 / 18.0f) * 0.7f;
+        drawZ(headX + 44.0f, cy - 90.0f - rise2, (float) pixel * 0.55f, alpha2);
     }
 }

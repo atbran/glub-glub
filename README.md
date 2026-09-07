@@ -3,6 +3,10 @@
 Cute pixel koi fish VST3 + Standalone. Transparent audio passthrough — any audio going through makes him dance. Dance fits the vibe (chill sway / hype bounce / sparkle spin + beat lock when the host gives BPM).
 
 - Kohaku-style procedural pixel koi, 500x500 resizable tank
+- Shaded near-3D pixel look: bendy spine body, connected fan tail, 3-tone shading, sumi spots
+- Dance moves: traveling undulation, beat bob + squash, bar tail-spin, flip on drops, 8-bar party spin
+- Chill pacing (~25% slower), breathing idle, sleepy ZZZ mode after ~6s of silence
+- Beat bubble-bursts from his mouth at high hype; HYPE meter bottom-right
 - Idle mouth bubbles, tiered fish-pun speech (low/med/high/idle, every 30-90s, configurable)
 - VST3 + Windows Standalone `.exe` from one JUCE 8 codebase
 

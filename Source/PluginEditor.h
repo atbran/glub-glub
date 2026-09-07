@@ -6,6 +6,7 @@
 #include "UI/Bubbles.h"
 #include "UI/SpeechBox.h"
 #include "UI/ConfigDrawer.h"
+#include "UI/HypeMeter.h"
 
 class GlubGlubEditor : public juce::AudioProcessorEditor, public juce::Timer
 {
@@ -22,6 +23,7 @@ private:
     Bubbles bubbles;
     SpeechBox speech;
     ConfigDrawer drawer;
+    HypeMeter hype;
     juce::Random rng;
     double startTime = 0.0;
 

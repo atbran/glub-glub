@@ -10,6 +10,7 @@ GlubGlubEditor::GlubGlubEditor(GlubGlubProcessor& p)
     addAndMakeVisible(bubbles);
     addAndMakeVisible(speech);
     addAndMakeVisible(drawer);
+    addAndMakeVisible(hype);
     drawer.onHeightChanged = [this] { resized(); };
     bubbles.setInterceptsMouseClicks(false, false);
     speech.setInterceptsMouseClicks(false, false);
@@ -48,6 +49,7 @@ void GlubGlubEditor::resized()
     auto b = getLocalBounds();
     drawer.setBounds(b.removeFromBottom(drawer.getCurrentHeight()));
     speech.setBounds(b.removeFromTop(84));
+    hype.setBounds(getWidth() - 182, getHeight() - drawer.getCurrentHeight() - 32, 170, 18);
     fish.setBounds(b);
     bubbles.setBounds(b);
 }
@@ -64,7 +66,10 @@ void GlubGlubEditor::timerCallback()
     float speechRate = proc.apvts.getRawParameterValue("speechRate")->load();
 
     fish.setVibe(energy, bright, pulse, phase, inten, bar);
+    hype.setHype(juce::jlimit(0.0f, 1.0f, energy * 0.5f + pulse * 0.3f + (float) inten * 0.1f));
     bubbles.setEnabled(bubblesOn);
+    if (bubblesOn && inten == 2 && pulse > 0.75f)
+        bubbles.burst(fish.getMouthPosition());
     bubbles.update(energy, fish.getMouthPosition());
     double now = juce::Time::getMillisecondCounterHiRes() / 1000.0 - startTime;
     speech.update(now, energy, inten, speechRate, rng);

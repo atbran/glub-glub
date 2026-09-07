@@ -35,6 +35,7 @@ target_sources(GlubGlub PRIVATE
   Source/UI/Bubbles.cpp
   Source/UI/SpeechBox.cpp
   Source/UI/ConfigDrawer.cpp
+  Source/UI/HypeMeter.cpp
 )
 
 target_compile_definitions(GlubGlub PRIVATE

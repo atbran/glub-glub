@@ -15,6 +15,8 @@ public:
     std::function<void()> onHeightChanged;
 
 private:
+    void setControlsExpanded(bool on);
+
     juce::AudioProcessorValueTreeState& state;
     juce::ToggleButton showBtn { "gear" };
     juce::Slider speechSlider, sensSlider, hueSlider;

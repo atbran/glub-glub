@@ -6,6 +6,7 @@ ConfigDrawer::ConfigDrawer(juce::AudioProcessorValueTreeState& s) : state(s)
     showBtn.onClick = [this]
     {
         expanded = !expanded;
+        setControlsExpanded(expanded);
         resized();
         if (onHeightChanged != nullptr)
             onHeightChanged();
@@ -29,6 +30,18 @@ ConfigDrawer::ConfigDrawer(juce::AudioProcessorValueTreeState& s) : state(s)
     sensAtt = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(state, "sensitivity", sensSlider);
     hueAtt = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(state, "hue", hueSlider);
     bubblesAtt = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(state, "bubblesOn", bubblesBtn);
+    setControlsExpanded(false);
+}
+
+void ConfigDrawer::setControlsExpanded(bool on)
+{
+    speechSlider.setVisible(on);
+    sensSlider.setVisible(on);
+    hueSlider.setVisible(on);
+    speechLabel.setVisible(on);
+    sensLabel.setVisible(on);
+    hueLabel.setVisible(on);
+    bubblesBtn.setVisible(on);
 }
 
 void ConfigDrawer::resized()
