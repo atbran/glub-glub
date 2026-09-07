@@ -58,6 +58,7 @@ void GlubGlubProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mid
     vibe.brightness.store(bright);
     vibe.beatPulse.store(pulse);
     vibe.intensity.store(intensity);
+    vibe.barCount.store(-1);
 
     // Host BPM / beat phase (Ableton) — smoothed, fallback -1 when unknown.
     float beatPhase = -1.0f;

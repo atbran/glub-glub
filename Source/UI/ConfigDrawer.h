@@ -1,6 +1,7 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_gui_basics/juce_gui_basics.h>
+#include <functional>
 
 class ConfigDrawer : public juce::Component
 {
@@ -9,6 +10,9 @@ public:
     void resized() override;
     int getCollapsedHeight() const { return 28; }
     int getExpandedHeight() const { return 120; }
+    int getCurrentHeight() const { return expanded ? getExpandedHeight() : getCollapsedHeight(); }
+
+    std::function<void()> onHeightChanged;
 
 private:
     juce::AudioProcessorValueTreeState& state;

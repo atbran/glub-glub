@@ -20,7 +20,7 @@ private:
     float energy = 0.0f;      // smoothed RMS 0..1
     float brightness = 0.0f;  // 0..1
     float beatPulse = 0.0f;   // onset pulse 0..1, decays
-    float prevFlux = 0.0f;
+    float previousMagnitude = 0.0f;
     float fluxThreshold = 0.02f;
     float prevSample = 0.0f;
 };

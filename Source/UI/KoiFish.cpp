@@ -3,10 +3,17 @@
 
 KoiFish::KoiFish() {}
 
-void KoiFish::setVibe(float e, float b, float p, float bp, int inten)
+void KoiFish::setVibe(float e, float b, float p, float bp, int inten, int bar)
 {
     energy = e; brightness = b; pulse = p; beatPhase = bp; intensity = inten;
     time += 0.016;
+    if (bar >= 0 && bar != lastBarCount)
+    {
+        lastBarCount = bar;
+        spinVelocity = 0.55f;
+    }
+    spinAngle += spinVelocity;
+    spinVelocity *= 0.88f;
     // flip direction occasionally on high energy for cuteness
     if (pulse > 0.85f && ((int) (time * 10) % 120 == 0))
         facingRight = !facingRight;
@@ -40,6 +47,9 @@ void KoiFish::paint(juce::Graphics& g)
     float cx = w * 0.5f + sway;
     float cy = h * 0.46f + bounce;
 
+    juce::Graphics::ScopedSaveState fishState(g);
+    g.addTransform(juce::AffineTransform::rotation(std::sin(spinAngle) * 0.48f, cx, cy));
+
     int pixel = juce::jmax(4, (int) (juce::jmin(w, h) / 42));
     // 16x10 koi sprite grid (procedural, orange-red with white patches)
     static const char* rows[] = {
@@ -60,7 +70,6 @@ void KoiFish::paint(juce::Graphics& g)
     auto white = juce::Colour(0xFFFFF3E8);
     auto black = juce::Colour(0xFF1A1A1A);
 
-    float dir = facingRight ? 1.0f : -1.0f;
     float ox = cx - 8 * pixel;
     float oy = cy - 5 * pixel;
 

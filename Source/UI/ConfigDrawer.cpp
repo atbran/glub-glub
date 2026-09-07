@@ -3,7 +3,13 @@
 ConfigDrawer::ConfigDrawer(juce::AudioProcessorValueTreeState& s) : state(s)
 {
     showBtn.setButtonText(" settings ");
-    showBtn.onClick = [this] { expanded = !expanded; setSize(getWidth(), expanded ? getExpandedHeight() : getCollapsedHeight()); resized(); };
+    showBtn.onClick = [this]
+    {
+        expanded = !expanded;
+        resized();
+        if (onHeightChanged != nullptr)
+            onHeightChanged();
+    };
     addAndMakeVisible(showBtn);
 
     speechLabel.setText("speech (s)", juce::dontSendNotification);

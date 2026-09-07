@@ -3,11 +3,11 @@
 ## Environment
 - Language: C++17 (JUCE 8, via CMake FetchContent)
 - Runtime: Windows win32, PowerShell 5.1
-- Build: CMake >= 3.22 + MSVC (Visual Studio 2022) / Ninja; `cmake --build build`
+- Build: CMake >= 3.22 + MSVC (Visual Studio 2022) / Ninja; `scripts/build-msvc-ninja.bat`
 - Test: No test framework yet; verification = CMake configure + build + pluginval smoke (if available)
 - Package Manager: CMake FetchContent for JUCE (no local install needed)
 - Tools available: cmake (scoop shim), cargo, node v24.19.0, npm 11.17.0
-- Git: NOT a git repo (D:\glub-glub has only .opencode/)
+- Git: local git repository on `master`; GitHub remote intentionally not configured yet
 
 ## Project Type
 - [x] Application (Audio Plugin + Standalone)

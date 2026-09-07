@@ -7,11 +7,18 @@ Cute pixel koi fish VST3 + Standalone. Transparent audio passthrough — any aud
 - VST3 + Windows Standalone `.exe` from one JUCE 8 codebase
 
 ## Build (Windows + MSVC)
-```powershell
-cmake -S . -B build -G "Visual Studio 17 2022" -A x64
-cmake --build build --config Release
+The reliable build entry point is the MSVC + Ninja script. It initializes the Visual Studio toolchain explicitly and avoids a CMake/Visual Studio generator probe issue on some installations:
+```cmd
+scripts\build-msvc-ninja.bat
 ```
-Outputs: `build/GlubGlub_artefacts/Release/VST3/Glub-Glub.vst3`, `build/GlubGlub_artefacts/Release/Standalone/Glub-Glub.exe`
+
+Manual equivalent:
+```powershell
+call "%ProgramFiles(x86)%\Microsoft Visual Studio\2022\BuildTools\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64
+"%ProgramFiles%\CMake\bin\cmake.exe" --fresh -S . -B build-msvc -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=cl.exe -DCMAKE_CXX_COMPILER=cl.exe
+"%ProgramFiles%\CMake\bin\cmake.exe" --build build-msvc --parallel
+```
+Outputs: `build-msvc/GlubGlub_artefacts/Release/VST3/Glub-Glub.vst3`, `build-msvc/GlubGlub_artefacts/Release/Standalone/Glub-Glub.exe`
 
 Copy `.vst3` to `C:\Program Files\Common Files\VST3\` for Ableton / FL / Reaper.
 
