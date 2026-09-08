@@ -39,6 +39,7 @@ target_sources(GlubGlub PRIVATE
   Source/UI/ConfigDrawer.cpp
   Source/UI/HypeMeter.cpp
   Source/UI/DiscoBall.cpp
+  Source/UI/FoodShaker.cpp
 )
 
 target_compile_definitions(GlubGlub PRIVATE

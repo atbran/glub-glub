@@ -11,5 +11,10 @@ struct VibeState
     std::atomic<int> intensity { 0 };        // 0 Low, 1 Med, 2 High
     std::atomic<int> barCount { -1 };
 
+    // Manual feed boost (food shaker): 0..1. UI side writes it while feeding
+    // and lets it decay after the feeding window; consumers treat it like a
+    // hype override so the koi dances, the meter pegs and the disco drops.
+    std::atomic<float> feedBoost { 0.0f };
+
     VibeState() { beatPhase.store(-1.0f); }
 };

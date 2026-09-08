@@ -58,10 +58,20 @@ namespace
 
 KoiFish::KoiFish() {}
 
-void KoiFish::setVibe(float e, float b, float p, float bp, int inten, int bar)
+void KoiFish::setVibe(float e, float b, float p, float bp, int inten, int bar, float feed)
 {
     energy = e; brightness = b; pulse = p; beatPhase = bp; intensity = inten;
     time += 0.016;
+
+    // feeding the koi forces full dance mode: party moves at high intensity
+    if (feed > 0.5f)
+    {
+        intensity = 2;
+        calmTime = 0.0f;
+        sleepy = false;
+        partyActive = true;
+        partyT = juce::jmin(partyT, 0.25f);
+    }
 
     if (bar >= 0 && bar != lastBarCount)
     {

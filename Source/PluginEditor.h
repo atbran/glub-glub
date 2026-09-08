@@ -8,6 +8,7 @@
 #include "UI/ConfigDrawer.h"
 #include "UI/HypeMeter.h"
 #include "UI/DiscoBall.h"
+#include "UI/FoodShaker.h"
 
 class GlubGlubEditor : public juce::AudioProcessorEditor, public juce::Timer
 {
@@ -26,8 +27,10 @@ private:
     ConfigDrawer drawer;
     HypeMeter hype;
     DiscoBall disco;
+    FoodShaker shaker;
     juce::Random rng;
     double startTime = 0.0;
+    double feedHoldUntil = 0.0;
     float partyGlow = 0.0f;
     float partyHue = 0.55f;
     float lastPhase = -1.0f;

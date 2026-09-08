@@ -6,7 +6,7 @@ class KoiFish : public juce::Component
 {
 public:
     KoiFish();
-    void setVibe(float energy, float brightness, float pulse, float beatPhase, int intensity, int barCount);
+    void setVibe(float energy, float brightness, float pulse, float beatPhase, int intensity, int barCount, float feedBoost);
     juce::Point<float> getMouthPosition() const;
     void paint(juce::Graphics& g) override;
 

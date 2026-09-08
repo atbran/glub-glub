@@ -12,6 +12,7 @@ GlubGlubEditor::GlubGlubEditor(GlubGlubProcessor& p)
     addAndMakeVisible(drawer);
     addAndMakeVisible(hype);
     addAndMakeVisible(disco);
+    addAndMakeVisible(shaker);
     disco.setInterceptsMouseClicks(false, false);
     drawer.onHeightChanged = [this] { resized(); };
     bubbles.setInterceptsMouseClicks(false, false);
@@ -65,6 +66,11 @@ void GlubGlubEditor::resized()
     disco.setBounds((int) (getWidth() * 0.5f) - discoW / 2, 0, discoW, discoH);
     fish.setBounds(b);
     bubbles.setBounds(b);
+    shaker.setBounds(b);
+    shaker.setWaterRect(b);
+    // tuck the canister in the bottom-right corner of the tank
+    shaker.setHome({ b.getRight() - 12 - shaker.GRID_W * shaker.CELL,
+                     b.getBottom() - 10 - shaker.GRID_H * shaker.CELL });
 }
 
 void GlubGlubEditor::timerCallback()
@@ -79,9 +85,20 @@ void GlubGlubEditor::timerCallback()
     float speechRate = proc.apvts.getRawParameterValue("speechRate")->load();
     double now = juce::Time::getMillisecondCounterHiRes() / 1000.0 - startTime;
 
-    fish.setVibe(energy, bright, pulse, phase, inten, bar);
+    // ---- feed boost (food shaker) ----
+    shaker.update(juce::Time::getMillisecondCounterHiRes() / 1000.0);
+    if (shaker.isFeeding())
+        feedHoldUntil = juce::Time::getMillisecondCounterHiRes() / 1000.0 + 4.0;
+    float feedTarget = juce::Time::getMillisecondCounterHiRes() / 1000.0 < feedHoldUntil ? 1.0f : 0.0f;
+    float feed = proc.vibe.feedBoost.load();
+    feed += (feedTarget - feed) * (feedTarget > feed ? 0.35f : 0.02f);
+    if (feed < 0.001f) feed = 0.0f;
+    proc.vibe.feedBoost.store(feed);
+
+    fish.setVibe(energy, bright, pulse, phase, inten, bar, feed);
 
     float hypeLevel = juce::jlimit(0.0f, 1.0f, (energy * 0.5f + pulse * 0.3f + (float) inten * 0.1f) * 1.15f);
+    hypeLevel = juce::jmax(hypeLevel, feed);
     hype.setHype(hypeLevel);
     disco.update(hypeLevel, now);
 
@@ -98,7 +115,7 @@ void GlubGlubEditor::timerCallback()
 
     float glowTarget = hypeLevel > 0.70f ? (hypeLevel - 0.70f) / 0.30f : 0.0f;
     partyGlow += (glowTarget - partyGlow) * 0.08f;
-    if (partyGlow > 0.004f || lastGlow > 0.004f)
+    if (partyGlow > 0.004f || lastGlow > 0.004f || feed > 0.004f)
         repaint();
     lastGlow = partyGlow;
 
