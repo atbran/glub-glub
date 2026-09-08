@@ -1,35 +1,119 @@
 # Glub-Glub 🐟
 
-Cute pixel koi fish VST3 + Standalone. Transparent audio passthrough — any audio going through makes him dance. Dance fits the vibe (chill sway / hype bounce / sparkle spin + beat lock when the host gives BPM).
+![Glub-Glub dancing](docs/screenshot.png)
 
-- Kohaku-style procedural pixel koi, 500x500 resizable tank
-- Shaded near-3D pixel look: bendy spine body, connected fan tail, 3-tone shading, sumi spots
-- Dance moves: traveling undulation, strong beat bob (host-BPM locked), bar tail-spins, flip on drops, 8-bar party spin
-- Party tier: pixel disco ball (rotating facets, sweeping specular, rim star sparkles) at medium hype; beat-stepped RGB water tint at 70%+ hype (smooth drift when no host BPM)
-- Beat bubble-bursts from his mouth at high hype; HYPE meter top-right; cute speech box at the bottom (~once per minute default)
-- Idle mouth bubbles, tiered fish-pun speech (low/med/high/idle, every 30-90s, configurable)
-- VST3 + Windows Standalone `.exe` from one JUCE 8 codebase
+**Glub-Glub** is a cute pixel koi fish who lives in your signal chain. He is a
+fully transparent VST3 effect — your audio passes through untouched — but any
+sound that goes through him makes him dance. Add him to a track in Ableton
+(or any DAW), hit play, and he bobs to the beat, undulates, flips on drops,
+and throws a full disco party when the music gets wild. Run the standalone
+`.exe` with no DAW at all and he just chills in his tank.
+
+![Glub-Glub party demo](docs/demo.gif)
+
+## Features
+
+- **Transparent audio passthrough** — zero DSP on your sound, zero latency added, any channel count
+- **Kohaku pixel koi** — white body, orange-red patches, sumi spots, 3-tone shading for a near-3D pixel look
+- **Beat-locked dancing** — bobs exactly on quarter notes via the host BPM hook (Ableton etc.); free-dances from audio analysis when no BPM is available
+- **Full move set** — traveling-body undulation, on-beat bob, tail spins every 4th bar, flip-arounds on drops, eased 360° party spin every 8 bars
+- **Party tier** — pixel disco ball (rotating facets, sweeping specular highlight, twinkling rim stars) at medium hype, beat-stepped RGB water tint at high hype (smooth drift when no BPM)
+- **Idle life** — mouth bubbles, breathing, sleepy ZZZ mode after ~6 seconds of silence
+- **Cute speech** — tiered fish-pun lines (idle / low / medium / high energy), roughly once per minute by default, configurable
+- **HYPE meter** — segmented top-right bar tracking energy + beat + intensity in real time
+
+## Install
+
+1. Build (below), then copy the plugin folder:
+
+```
+C:\Program Files\Common Files\VST3\   (copy Glub-Glub.vst3 here)
+```
+
+2. Or just run the standalone: `Glub-Glub.exe` (pick an audio input in its settings if you want him to react to your mic/system audio).
 
 ## Build (Windows + MSVC)
-The reliable build entry point is the MSVC + Ninja script. It initializes the Visual Studio toolchain explicitly and avoids a CMake/Visual Studio generator probe issue on some installations:
+
+Requires VS 2022 Build Tools with the C++ workload and CMake 3.22+.
+
 ```cmd
-scripts\build-msvc-ninja.bat
+scripts\build-windows.bat
 ```
 
-Manual equivalent:
-```powershell
-call "%ProgramFiles(x86)%\Microsoft Visual Studio\2022\BuildTools\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64
-"%ProgramFiles%\CMake\bin\cmake.exe" --fresh -S . -B build-msvc -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=cl.exe -DCMAKE_CXX_COMPILER=cl.exe
-"%ProgramFiles%\CMake\bin\cmake.exe" --build build-msvc --parallel
+Outputs:
+
+- VST3: `build-msvc\GlubGlub_artefacts\Release\VST3\Glub-Glub.vst3`
+- Standalone: `build-msvc\GlubGlub_artefacts\Release\Standalone\Glub-Glub.exe`
+
+### Demo mode
+
+Wants to see him dance without routing audio? Build the demo variant:
+
+```cmd
+scripts\build-demo.bat
 ```
-Outputs: `build-msvc/GlubGlub_artefacts/Release/VST3/Glub-Glub.vst3`, `build-msvc/GlubGlub_artefacts/Release/Standalone/Glub-Glub.exe`
 
-Copy `.vst3` to `C:\Program Files\Common Files\VST3\` for Ableton / FL / Reaper.
+It synthesizes a 128 BPM kick/hat groove **internally** to drive the visuals.
+Your audio output stays completely transparent — the demo groove only feeds
+the animation engine.
 
-## Use
-- Insert as VST effect on any track — audio passes through untouched, glub-glub dances.
-- Standalone: run exe, pick input, play music.
-- Bottom drawer: speech rate 30-90s, vibe sensitivity, tank hue, bubbles toggle (saved per instance).
+## Usage
 
-## Vibe engine
-RMS energy + onset flux + brightness (ZCR/HF proxy) → Low/Med/High. Host BPM via `AudioPlayHead` (Ableton) → beat-phase bounce + bar-4 spin, smoothed 200ms. Standalone falls back to free-dance.
+- **In a DAW**: insert on any track, press play. He reads the host BPM and bobs on the grid.
+- **Standalone**: launch the exe, play music into the selected input device.
+- **Settings drawer** (bottom-left, click `settings`):
+  - *speech (s)* — speech bubble frequency, 30–90s (default ~60s)
+  - *vibe* — overall dance sensitivity (0.2–2.0)
+  - *hue* — tank water color shift
+  - *bubbles* — toggle idle mouth bubbles
+
+## How the dancing works
+
+```
+audio ──▶ AudioFeatures (RMS envelope, onset flux, brightness)
+              │
+              ▼
+        VibeState (energy, pulse, brightness, intensity, host BPM/beat phase)
+              │ lock-free atomics
+              ▼
+        KoiFish (spine-driven pixel body: undulation, bob, spins, flips)
+        DiscoBall / RGB tint (party tier) · Bubbles · SpeechBox · HypeMeter
+```
+
+- The **body** is generated from a bending spine: fat head, tapering tail,
+  weld-connected fan tail. The traveling wave moves head-to-tail so the tail
+  whips while the head (and bubble origin) stays anchored.
+- The **bob** is `(1 - beatPhase)^1.5` — exactly one dip per quarter note,
+  hitting on the beat, using the host's PPQ position.
+- The **disco ball** drops in when hype (energy·0.5 + pulse·0.3 + intensity·0.1, ×1.15)
+  exceeds 45% and holds until it has been below 60% for 500 ms.
+- The **RGB tint** eases in above 70% hype, hue-jumping on each host beat.
+  Alpha is capped at ~14% so it never flash-bangs.
+
+## Project layout
+
+```
+Source/
+  PluginProcessor.{h,cpp}   transparent effect + parameters + vibe state
+  PluginEditor.{h,cpp}      500x500 resizable tank, 60 fps timer
+  DSP/AudioFeatures.*       allocation-free analysis (audio thread)
+  DSP/VibeState.h           lock-free atomic state
+  UI/KoiFish.*              spine-driven pixel koi (offscreen-rendered)
+  UI/DiscoBall.*            party ball
+  UI/Bubbles.*              mouth bubble particles
+  UI/SpeechBox.*            tiered cute speech
+  UI/HypeMeter.*            segmented hype bar
+  UI/ConfigDrawer.*         collapsible settings
+scripts/
+  build-windows.bat         standard release build (MSVC + Ninja)
+  build-demo.bat            demo-mode build (synth-driven visuals)
+  capture-demo.ps1          window frame capture (screenshots/GIF source)
+  makegif.js                frames -> GIF (pngjs + gifenc)
+```
+
+## Repo branches
+
+- `main` — stable line
+- `experimental` — WIP tuning; merged to `main` when it feels good
+
+Built with [JUCE 8](https://juce.com/) and a lot of glubs.

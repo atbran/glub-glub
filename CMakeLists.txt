@@ -12,6 +12,8 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(JUCE)
 
+option(GLUB_DEMO_MODE "Synthesize a 128 BPM demo groove to drive visuals (audio output stays transparent)" OFF)
+
 juce_add_plugin(GlubGlub
   COMPANY_NAME "GlubGlub"
   IS_SYNTH FALSE
@@ -43,6 +45,7 @@ target_compile_definitions(GlubGlub PRIVATE
   JUCE_WEB_BROWSER=0
   JUCE_USE_CURL=0
   JUCE_VST3_CAN_REPLACE_VST2=0
+  $<$<BOOL:${GLUB_DEMO_MODE}>:GLUB_DEMO_MODE=1>
 )
 
 target_link_libraries(GlubGlub PRIVATE

@@ -1,5 +1,6 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <vector>
 #include "DSP/AudioFeatures.h"
 #include "DSP/VibeState.h"
 
@@ -39,6 +40,12 @@ private:
     AudioFeatures features;
     double smoothedBpm = 0.0;
     double lastPpq = 0.0;
+
+#if GLUB_DEMO_MODE
+    std::vector<float> demoBuf;
+    juce::Random demoRandom;
+    double demoPhase = 0.0;
+#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GlubGlubProcessor)
 };

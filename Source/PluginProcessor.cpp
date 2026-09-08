@@ -24,10 +24,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout GlubGlubProcessor::createPar
     return { p.begin(), p.end() };
 }
 
-void GlubGlubProcessor::prepareToPlay(double sampleRate, int)
+void GlubGlubProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     features.prepare(sampleRate);
     smoothedBpm = 0.0;
+#if GLUB_DEMO_MODE
+    demoBuf.assign((size_t) std::max(1, samplesPerBlock), 0.0f);
+#endif
 }
 
 void GlubGlubProcessor::releaseResources() {}
@@ -45,7 +48,34 @@ void GlubGlubProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mid
     float sensitivity = apvts.getRawParameterValue("sensitivity")->load();
     sensitivity = juce::jlimit(0.2f, 2.0f, sensitivity);
 
+#if GLUB_DEMO_MODE
+    const int n = buffer.getNumSamples();
+    if ((int) demoBuf.size() >= n)
+    {
+        const double sr = getSampleRate() > 0.0 ? getSampleRate() : 44100.0;
+        const double spb = 60.0 / 128.0 * sr;
+        float* ch[1] = { demoBuf.data() };
+        for (int i = 0; i < n; ++i)
+        {
+            double beatPos = std::fmod(demoPhase, spb) / spb;
+            bool offHat = std::fmod(std::floor(demoPhase / spb), 2.0) > 0.5;
+            float v = 0.9f * std::exp((float) (-beatPos * 14.0))
+                    * std::sin((float) (2.0 * juce::MathConstants<double>::pi * 52.0 * (demoPhase / sr)));
+            v += 0.10f * std::sin((float) (2.0 * juce::MathConstants<double>::pi * 41.2 * (demoPhase / sr)));
+            if (offHat)
+            {
+                float hatEnv = std::exp((float) (-beatPos * 45.0));
+                v += 0.30f * hatEnv * (demoRandom.nextFloat() * 2.0f - 1.0f);
+            }
+            ch[0][i] = juce::jlimit(-1.0f, 1.0f, v);
+            demoPhase += 1.0;
+        }
+        juce::AudioBuffer<float> demo(ch, 1, n);
+        features.pushBlock(demo);
+    }
+#else
     features.pushBlock(buffer);
+#endif
 
     float energy = juce::jlimit(0.0f, 1.0f, features.getEnergy() * sensitivity);
     float bright = features.getBrightness();

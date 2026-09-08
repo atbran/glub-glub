@@ -62,3 +62,10 @@
 - [x] Beat bob +50% motion; idle bob +30%
 - [x] Disco ball holds until hype below 60% for 500ms
 - [x] Disco ball scales with window resize (120-220px, width-proportional)
+
+## M12: Docs + media + main merge | status: completed
+- [x] Demo mode (-DGLUB_DEMO_MODE=ON): internal 128 BPM synth groove drives visuals, audio still transparent
+- [x] scripts: build-demo.bat, capture-demo.ps1 (window capture), makegif.js (frames -> GIF)
+- [x] README rewrite (features, install, build, usage, architecture)
+- [x] docs/screenshot.png + docs/demo.gif captured from live demo build
+- [x] experimental -> main merge, main set as default branch
