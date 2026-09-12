@@ -61,3 +61,13 @@ target_link_libraries(GlubGlub PRIVATE
 )
 
 juce_generate_juce_header(GlubGlub)
+
+option(GLUB_BUILD_MOTION_CHECKS "Build deterministic offscreen koi checks" OFF)
+if(GLUB_BUILD_MOTION_CHECKS)
+  enable_testing()
+  juce_add_console_app(KoiMotionChecks PRODUCT_NAME "KoiMotionChecks")
+  target_sources(KoiMotionChecks PRIVATE tests/KoiMotionChecks.cpp Source/UI/KoiFish.cpp)
+  target_compile_definitions(KoiMotionChecks PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+  target_link_libraries(KoiMotionChecks PRIVATE juce::juce_gui_basics)
+  add_test(NAME koi-motion COMMAND KoiMotionChecks)
+endif()

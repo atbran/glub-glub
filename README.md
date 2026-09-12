@@ -16,7 +16,8 @@ and throws a full disco party when the music gets wild. Run the standalone
 - **Transparent audio passthrough** — zero DSP on your sound, zero latency added, any channel count
 - **Kohaku pixel koi** — white body, orange-red patches, sumi spots, 3-tone shading for a near-3D pixel look
 - **Beat-locked dancing** — bobs exactly on quarter notes via the host BPM hook (Ableton etc.); free-dances from audio analysis when no BPM is available
-- **Full move set** — traveling-body undulation, on-beat bob, tail spins every 4th bar, flip-arounds on drops, eased 360° party spin every 8 bars
+- **Nine dance moves** — worm, barrel roll, spin, flip, shuffle, head bop, tail shimmy, figure eight, and a beat-synced twerk. Automatic choreography gives bigger tricks room to breathe; manual requests queue after the current move.
+- **Connected pixel rendering** — the body and glasses share one transform, keeping stretched pixels connected and the glasses attached through rolls and flips.
 - **Party tier** — pixel disco ball (rotating facets, sweeping specular highlight, twinkling rim stars) at medium hype, beat-stepped RGB water tint at high hype (smooth drift when no BPM)
 - **Idle life** — mouth bubbles, breathing, sleepy ZZZ mode after ~6 seconds of silence
 - **Cute speech** — tiered fish-pun lines (idle / low / medium / high energy), roughly once per minute by default, configurable
@@ -65,7 +66,20 @@ the animation engine.
   - *speech (s)* — speech bubble frequency, 30–90s (default ~60s)
   - *vibe* — overall dance sensitivity (0.2–2.0)
   - *hue* — tank water color shift
-  - *bubbles* — toggle idle mouth bubbles
+- *bubbles* — toggle idle mouth bubbles
+- *glasses* — keep the Deal With It glasses on or off, with a smooth entrance/exit (off by default)
+- *gentle* — reduce travel and suppress full rotations
+- *move selector + Dance* — trigger any of the nine moves; repeated clicks do not restart a move midway
+
+Moves pick up a downbeat when host timing is available. Rolls, spins, and worms
+span four beats; the twerk and full figure eight span eight. The whole-body bounce
+lands with a squash on the beat and lifts between beats. Glasses use a larger fit
+while keeping the same face anchor.
+
+Glasses and gentle-motion settings are saved with the plugin state. Hype now uses
+the loudness envelope before the vibe sensitivity control. Sustained loud passages
+can reach maximum; a loud drop builds faster, while isolated peaks and food alone
+cannot peg the meter. Without host tempo, beat-based moves use a 120 BPM fallback.
 
 ## How the dancing works
 
@@ -83,14 +97,19 @@ audio ──▶ AudioFeatures (RMS envelope, onset flux, brightness)
 - The **body** is generated from a bending spine: fat head, tapering tail,
   weld-connected fan tail. The traveling wave moves head-to-tail so the tail
   whips while the head (and bubble origin) stays anchored.
-- The **bob** is `(1 - beatPhase)^1.5` — exactly one dip per quarter note,
-  hitting on the beat, using the host's PPQ position.
-- The **disco ball** drops in when hype (energy·0.5 + pulse·0.3 + intensity·0.1, ×1.15)
-  exceeds 45% and holds until it has been below 60% for 500 ms.
+- The **bob** uses a continuous cosine cycle with one dip per quarter note,
+  avoiding a position jump when the host's beat phase wraps back to zero.
+- The **hype envelope** builds from musical loudness with a nonlinear threshold,
+  faster response to loud drops, and a smooth release. The disco ball responds to
+  that envelope.
 - The **RGB tint** eases in above 70% hype, hue-jumping on each host beat.
   Alpha is capped at ~14% so it never flash-bangs.
 
 ## Project layout
+
+For deterministic offscreen motion and hype checks, run `scripts\check-motion.bat`.
+It checks roll continuity, move queueing, update-rate independence, glasses toggling,
+and hype responses, and writes rendered move previews to `build-msvc/motion-review`.
 
 ```
 Source/

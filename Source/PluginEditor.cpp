@@ -14,7 +14,9 @@ GlubGlubEditor::GlubGlubEditor(GlubGlubProcessor& p)
     addAndMakeVisible(disco);
     addAndMakeVisible(shaker);
     disco.setInterceptsMouseClicks(false, false);
+    fish.setInterceptsMouseClicks(false, false);
     drawer.onHeightChanged = [this] { resized(); };
+    drawer.onMoveTriggered = [this](KoiFish::MoveType m) { fish.triggerMove(m); };
     bubbles.setInterceptsMouseClicks(false, false);
     speech.setInterceptsMouseClicks(false, false);
     startTime = juce::Time::getMillisecondCounterHiRes() / 1000.0;
@@ -44,6 +46,69 @@ void GlubGlubEditor::paint(juce::Graphics& g)
     {
         float x = 30 + i * 40;
         g.fillRect(x, b.getHeight() - 90.0f, 8.0f, 70.0f);
+    }
+
+    // Sweeping Disco Lasers
+    if (disco.isShowing() && disco.getAppear() > 0.05f)
+    {
+        float app = disco.getAppear();
+        auto ballCentre = disco.getBounds().getTopLeft().toFloat() + disco.getBallCentre();
+        double now = juce::Time::getMillisecondCounterHiRes() / 1000.0 - startTime;
+        float beatPulse = proc.vibe.beatPulse.load();
+        float baseAlpha = app * (0.35f + 0.35f * beatPulse);
+
+        struct LaserDef {
+            juce::Colour col;
+            float freq;
+            float phase;
+            float spread;
+        };
+        const LaserDef lasers[4] = {
+            { juce::Colour(0xFF00E5FF), 2.2f, 0.0f, 0.55f }, // Neon Cyan
+            { juce::Colour(0xFFFF007F), 1.7f, 1.3f, 0.65f }, // Hot Pink
+            { juce::Colour(0xFF39FF14), 2.8f, 2.7f, 0.50f }, // Electric Lime
+            { juce::Colour(0xFFFFD700), 1.9f, 4.2f, 0.70f }  // Cyber Gold
+        };
+
+        for (int i = 0; i < 4; ++i)
+        {
+            float ang = 0.5f * 3.14159265f + lasers[i].spread * std::sin((float) now * lasers[i].freq + lasers[i].phase);
+            float length = b.getHeight() * 1.5f;
+            float ex = ballCentre.x + std::cos(ang) * length;
+            float ey = ballCentre.y + std::sin(ang) * length;
+
+            // Wide translucent atmospheric beam glow
+            g.setColour(lasers[i].col.withAlpha(baseAlpha * 0.25f));
+            g.drawLine(ballCentre.x, ballCentre.y, ex, ey, 6.0f);
+
+            // Core intense laser beam
+            g.setColour(lasers[i].col.withAlpha(baseAlpha * 0.75f));
+            g.drawLine(ballCentre.x, ballCentre.y, ex, ey, 2.0f);
+
+            // Floor / surface hit splash
+            float tFloor = (b.getHeight() - 15.0f - ballCentre.y) / (std::sin(ang) * length);
+            if (tFloor > 0.0f && tFloor < 1.0f)
+            {
+                float hx = ballCentre.x + std::cos(ang) * length * tFloor;
+                float hy = b.getHeight() - 15.0f;
+                g.setColour(lasers[i].col.withAlpha(baseAlpha * 0.6f));
+                g.fillEllipse(hx - 8.0f, hy - 4.0f, 16.0f, 8.0f);
+            }
+        }
+    }
+
+    // Water Ripples from glass tapping
+    for (const auto& rip : ripples)
+    {
+        if (rip.alpha <= 0.01f) continue;
+        g.setColour(juce::Colour(0xFFBEE9E8).withAlpha(rip.alpha * 0.75f));
+        g.drawEllipse(rip.x - rip.radius, rip.y - rip.radius * 0.45f, rip.radius * 2.0f, rip.radius * 0.9f, 2.0f);
+        if (rip.radius > 8.0f)
+        {
+            g.setColour(juce::Colour(0xFFFFFFFF).withAlpha(rip.alpha * 0.4f));
+            g.drawEllipse(rip.x - (rip.radius - 6.0f), rip.y - (rip.radius - 6.0f) * 0.45f,
+                          (rip.radius - 6.0f) * 2.0f, (rip.radius - 6.0f) * 0.9f, 1.0f);
+        }
     }
 
     if (partyGlow > 0.004f)
@@ -84,6 +149,8 @@ void GlubGlubEditor::timerCallback()
     bool bubblesOn = proc.apvts.getRawParameterValue("bubblesOn")->load() > 0.5f;
     float speechRate = proc.apvts.getRawParameterValue("speechRate")->load();
     double now = juce::Time::getMillisecondCounterHiRes() / 1000.0 - startTime;
+    const float dt = lastUpdateTime > 0.0 ? juce::jlimit(0.0f, 0.05f, (float) (now - lastUpdateTime)) : 1.0f / 60.0f;
+    lastUpdateTime = now;
 
     // ---- feed boost (food shaker) ----
     shaker.update(juce::Time::getMillisecondCounterHiRes() / 1000.0);
@@ -95,10 +162,11 @@ void GlubGlubEditor::timerCallback()
     if (feed < 0.001f) feed = 0.0f;
     proc.vibe.feedBoost.store(feed);
 
-    fish.setVibe(energy, bright, pulse, phase, inten, bar, feed);
+    const float hypeLevel = hypeEnvelope.update(proc.vibe.loudness.load(), pulse, feed, dt);
+    fish.setGlassesOn(proc.apvts.getRawParameterValue("glassesOn")->load() > 0.5f);
+    fish.setGentleMotion(proc.apvts.getRawParameterValue("gentleMotion")->load() > 0.5f);
+    fish.setVibe(energy, bright, pulse, phase, inten, bar, feed, hypeLevel, dt, proc.vibe.bpm.load());
 
-    float hypeLevel = juce::jlimit(0.0f, 1.0f, (energy * 0.5f + pulse * 0.3f + (float) inten * 0.1f) * 1.15f);
-    hypeLevel = juce::jmax(hypeLevel, feed);
     hype.setHype(hypeLevel);
     disco.update(hypeLevel, now);
 
@@ -115,7 +183,17 @@ void GlubGlubEditor::timerCallback()
 
     float glowTarget = hypeLevel > 0.70f ? (hypeLevel - 0.70f) / 0.30f : 0.0f;
     partyGlow += (glowTarget - partyGlow) * 0.08f;
-    if (partyGlow > 0.004f || lastGlow > 0.004f || feed > 0.004f)
+
+    // Ripple physics update
+    for (auto& rip : ripples)
+    {
+        rip.radius += 1.8f;
+        rip.alpha -= 0.032f;
+    }
+    ripples.erase(std::remove_if(ripples.begin(), ripples.end(),
+        [](const Ripple& r) { return r.alpha <= 0.0f || r.radius > 70.0f; }), ripples.end());
+
+    if (partyGlow > 0.004f || lastGlow > 0.004f || feed > 0.004f || disco.isShowing() || !ripples.empty())
         repaint();
     lastGlow = partyGlow;
 
@@ -124,4 +202,28 @@ void GlubGlubEditor::timerCallback()
         bubbles.burst(fish.getMouthPosition());
     bubbles.update(energy, fish.getMouthPosition());
     speech.update(now, energy, inten, speechRate, rng);
+}
+
+void GlubGlubEditor::mouseDown(const juce::MouseEvent& e)
+{
+    auto pos = e.position;
+    ripples.push_back({ pos.x, pos.y, 2.0f, 0.9f });
+    fish.triggerStartle(pos);
+    bubbles.burst(fish.getMouthPosition());
+    repaint();
+}
+
+void GlubGlubEditor::mouseMove(const juce::MouseEvent& e)
+{
+    fish.setMouseTarget(e.position, true);
+}
+
+void GlubGlubEditor::mouseDrag(const juce::MouseEvent& e)
+{
+    fish.setMouseTarget(e.position, true);
+}
+
+void GlubGlubEditor::mouseExit(const juce::MouseEvent&)
+{
+    fish.setMouseTarget({ -1.0f, -1.0f }, false);
 }

@@ -4,15 +4,55 @@ SpeechBox::SpeechBox() {}
 
 juce::String SpeechBox::pick(int intensity, float energy, juce::Random& rng)
 {
-    static const char* idle[] = { "glub glub!", "blub... blub!", "i love you!", "is that bass? hi bass!", "bubble break!", "wheee~" };
-    static const char* low[] = { "so sleepy... so glubby...", "lofi glub ~", "drifting... blub", "cozy water today" };
-    static const char* med[] = { "oh! i feel that groove!", "glub glub! funky!", "wiggle wiggle!", "this beat tickles my fins!" };
-    static const char* high[] = { "WHOA!!! DROP!! GLUB!!", "HYPE HYPE BUBBLES!!", "SPINNING!! WHEEE!!", "TOO MUCH FUN!! BLUB!!" };
+    static const char* idle[] = {
+        "Bro did you fall asleep at the fader?",
+        "Did your trial of Ableton expire or what?",
+        "Zero dBFS, zero bitches.",
+        "Is this track paused or is this avant-garde ambient?",
+        "My swim bladder is drier than this mix.",
+        "Even my filter cutoff is depressed.",
+        "Unmute me you coward.",
+        "glub... someone hit play before I dry out...",
+        "I didn't evolve from primordial soup to sit in silence."
+    };
+    static const char* low[] = {
+        "Lofi beats to disassociate and rot to.",
+        "Slap another OTT on it, don't be shy.",
+        "This snare sounds like a wet cardboard box.",
+        "Needs more sausage fattener, honestly.",
+        "Cozy... but where's the drop at, chief?",
+        "Bro's mixing at -40 LUFS for ants.",
+        "Is the high-pass set to 15kHz or are my gills clogged?",
+        "A little more drive, daddy... just a little."
+    };
+    static const char* med[] = {
+        "Okay okay... the bassline kinda thicc though.",
+        "Fin-shaking groove! Watch me shake this caudal fin.",
+        "That kick is punchy enough to crack my glass.",
+        "Ooh yeah, slap that sidechain harder daddy!",
+        "Who gave you permission to cook like this?!",
+        "My scales are tingling in forbidden ways.",
+        "Turn the sub up until the neighbors file a lawsuit!",
+        "Mmm yeah, pump that compressor right there.",
+        "I'm wiggling so hard my dorsal fin might come off."
+    };
+    static const char* high[] = {
+        "HOLY SHIT THE DROP!! GLUB GLUB GLUB!!",
+        "BRICKWALL LIMIT ME STRAIGHT TO HELL!!",
+        "CERTIFIED BANGER!! MY GILLS ARE CLIPPING!!",
+        "WE'RE IN THE RED, BABY! RED MEANS WARMTH!!",
+        "SOMEBODY CALL 911, THIS 808 IS TOO FAT!!",
+        "I'M SHAKING MY ASS FIN LIKE IT'S 3 AM IN BERLIN!!",
+        "MORE BASS! BLOW OUT MY RETINAS!!",
+        "GLUB SO HARD MOTHERFUCKERS WANNA FRY ME!!",
+        "SPREAD MY STEREO WIDTH WIDE OPEN!!",
+        "MAX HYPE!! GLUB GLUB HYPE EXPLOSION!!"
+    };
     auto choose = [&](const char** arr, int n) { return juce::String(arr[(int) (rng.nextFloat() * n) % n]); };
-    if (intensity == 2) return choose(high, 4);
-    if (intensity == 1) return choose(med, 4);
-    if (energy < 0.12f) return choose(low, 4);
-    return choose(idle, 6);
+    if (intensity == 2) return choose(high, (int) (sizeof(high) / sizeof(high[0])));
+    if (intensity == 1) return choose(med, (int) (sizeof(med) / sizeof(med[0])));
+    if (energy < 0.12f) return choose(low, (int) (sizeof(low) / sizeof(low[0])));
+    return choose(idle, (int) (sizeof(idle) / sizeof(idle[0])));
 }
 
 void SpeechBox::update(double nowSec, float energy, int intensity, float speechRateSec, juce::Random& rng)

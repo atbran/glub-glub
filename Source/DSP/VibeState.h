@@ -4,6 +4,7 @@
 struct VibeState
 {
     std::atomic<float> energy { 0.0f };      // 0..1 smoothed RMS
+    std::atomic<float> loudness { 0.0f };    // envelope before user sensitivity
     std::atomic<float> brightness { 0.0f };  // 0..1 ZCR/HF proxy
     std::atomic<float> beatPulse { 0.0f };   // 0..1 onset pulse (decays)
     std::atomic<float> beatPhase { 0.0f };   // 0..1 host beat phase, -1 if unknown
@@ -13,7 +14,7 @@ struct VibeState
 
     // Manual feed boost (food shaker): 0..1. UI side writes it while feeding
     // and lets it decay after the feeding window; consumers treat it like a
-    // hype override so the koi dances, the meter pegs and the disco drops.
+    // dance boost; musical loudness is still required to max out the meter.
     std::atomic<float> feedBoost { 0.0f };
 
     VibeState() { beatPhase.store(-1.0f); }

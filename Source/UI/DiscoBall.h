@@ -8,6 +8,10 @@ public:
     void update(float hypeLevel, double nowSec);
     void paint(juce::Graphics& g) override;
 
+    bool isShowing() const { return appear > 0.05f; }
+    float getAppear() const { return appear; }
+    juce::Point<float> getBallCentre() const;
+
 private:
     float level = 0.0f;
     float appear = 0.0f;

@@ -9,6 +9,7 @@
 #include "UI/HypeMeter.h"
 #include "UI/DiscoBall.h"
 #include "UI/FoodShaker.h"
+#include "UI/HypeEnvelope.h"
 
 class GlubGlubEditor : public juce::AudioProcessorEditor, public juce::Timer
 {
@@ -19,7 +20,21 @@ public:
     void resized() override;
     void timerCallback() override;
 
+    void mouseDown(const juce::MouseEvent& e) override;
+    void mouseMove(const juce::MouseEvent& e) override;
+    void mouseDrag(const juce::MouseEvent& e) override;
+    void mouseExit(const juce::MouseEvent& e) override;
+
 private:
+    struct Ripple
+    {
+        float x = 0.0f;
+        float y = 0.0f;
+        float radius = 2.0f;
+        float alpha = 0.85f;
+    };
+    std::vector<Ripple> ripples;
+
     GlubGlubProcessor& proc;
     KoiFish fish;
     Bubbles bubbles;
@@ -35,6 +50,8 @@ private:
     float partyHue = 0.55f;
     float lastPhase = -1.0f;
     float lastGlow = 0.0f;
+    HypeEnvelope hypeEnvelope;
+    double lastUpdateTime = 0.0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GlubGlubEditor)
 };

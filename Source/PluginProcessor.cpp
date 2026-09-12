@@ -21,6 +21,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout GlubGlubProcessor::createPar
     p.push_back(std::make_unique<juce::AudioParameterFloat>(
         "hue", "Tank Hue", juce::NormalisableRange<float>(-0.1f, 0.1f, 0.001f), 0.0f));
     p.push_back(std::make_unique<juce::AudioParameterBool>("bubblesOn", "Bubbles", true));
+    p.push_back(std::make_unique<juce::AudioParameterBool>("glassesOn", "Deal With It Glasses", false));
+    p.push_back(std::make_unique<juce::AudioParameterBool>("gentleMotion", "Gentle Motion", false));
     return { p.begin(), p.end() };
 }
 
@@ -85,6 +87,7 @@ void GlubGlubProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mid
     if (sensitivity < 0.7f && intensity > 0 && energy < 0.35f) intensity = 0;
 
     vibe.energy.store(energy);
+    vibe.loudness.store(features.getEnergy());
     vibe.brightness.store(bright);
     vibe.beatPulse.store(pulse);
     vibe.intensity.store(intensity);
@@ -106,7 +109,7 @@ void GlubGlubProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mid
                 else smoothedBpm += 0.2 * (target - smoothedBpm); // ~200ms smoothing
                 bpmToStore = smoothedBpm;
             }
-            if (ppq.hasValue() && bpmToStore > 0.0)
+            if (ppq.hasValue() && bpmToStore > 0.0 && pos->getIsPlaying())
             {
                 double frac = *ppq - std::floor(*ppq);
                 if (frac < 0) frac += 1.0;

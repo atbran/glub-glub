@@ -20,8 +20,8 @@ void DiscoBall::update(float hypeLevel, double nowSec)
 
     if (!showing)
     {
-        aboveTime = level > 0.45f ? aboveTime + dt : 0.0f;
-        if (aboveTime >= 0.10f)
+        aboveTime = level >= 0.70f ? aboveTime + dt : 0.0f;
+        if (aboveTime >= 0.25f)
         {
             showing = true;
             shownAt = nowSec;
@@ -31,8 +31,8 @@ void DiscoBall::update(float hypeLevel, double nowSec)
     }
     else
     {
-        belowTime = level < 0.60f ? belowTime + dt : 0.0f;
-        if (belowTime >= 0.50f)
+        belowTime = level < 0.65f ? belowTime + dt : 0.0f;
+        if (belowTime >= 0.85f)
         {
             showing = false;
             belowTime = 0.0f;
@@ -125,4 +125,18 @@ void DiscoBall::paint(juce::Graphics& g)
         g.fillRect(px - s, py - s * 0.20f, s * 2.0f, s * 0.40f);
         g.fillRect(px - s * 0.20f, py - s, s * 0.40f, s * 2.0f);
     }
+}
+
+juce::Point<float> DiscoBall::getBallCentre() const
+{
+    auto b = getLocalBounds().toFloat();
+    float anchorX = b.getWidth() * 0.5f;
+    float t = juce::jlimit(0.0f, 1.0f, appear);
+    float c1 = 1.70158f, c3 = c1 + 1.0f;
+    float eased = 1.0f + c3 * std::pow(t - 1.0f, 3.0f) + c1 * std::pow(t - 1.0f, 2.0f);
+    float drop = (1.0f - eased) * -90.0f;
+    int cell = juce::jmax(3, (int) (b.getHeight() / 26.0f));
+    float cf = (float) cell;
+    float by = 4.0f * cf + drop;
+    return { anchorX, by + 5.5f * cf };
 }
