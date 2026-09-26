@@ -6,6 +6,23 @@ namespace
 {
     constexpr float kPi = 3.14159265f;
 
+    // Shared eased timing keeps deformation, contact and rotation in one phrase.
+    float danceEase(float start, float end, float progress)
+    {
+        const float t = juce::jlimit(0.0f, 1.0f, (progress - start) / (end - start));
+        return t * t * (3.0f - 2.0f * t);
+    }
+
+    float breakdancePlant(float progress)
+    {
+        return danceEase(0.0f, 0.22f, progress) * (1.0f - danceEase(0.78f, 1.0f, progress));
+    }
+
+    float breakdanceSpin(float progress)
+    {
+        return danceEase(0.22f, 0.32f, progress) * (1.0f - danceEase(0.58f, 0.70f, progress));
+    }
+
     const juce::Colour colOutline { 0xFF261712 };
     const juce::Colour colWBase   { 0xFFFDF6E3 };
     const juce::Colour colWLight  { 0xFFFFFEF9 };
@@ -67,7 +84,7 @@ KoiFish::KoiFish() {}
 
 bool KoiFish::isMoveBusy() const
 {
-    return wormActive || rollActive || partyActive || flipActive || extraMove != MoveType::None;
+    return wormActive || rollActive || partyActive || flipActive || breakdanceActive || extraMove != MoveType::None;
 }
 
 juce::Point<float> KoiFish::figureEightPath(float progress, float width, float height)
@@ -114,6 +131,7 @@ void KoiFish::setVibe(float e, float b, float p, float bp, int inten, int bar, f
     calmTime = energy < 0.06f && pulse < 0.12f && feed < 0.5f ? calmTime + dt : 0.0f;
     sleepy = calmTime > 6.0f;
     moveCooldown = juce::jmax(0.0f, moveCooldown - dt);
+    breakdanceCooldown = juce::jmax(0.0f, breakdanceCooldown - dt);
     mouseFlipCooldown = juce::jmax(0.0f, mouseFlipCooldown - dt);
     startleT = juce::jmax(0.0f, startleT - dt * 2.2f);
 
@@ -127,6 +145,7 @@ void KoiFish::setVibe(float e, float b, float p, float bp, int inten, int bar, f
     advance(wormActive, wormT, 4.0f);
     advance(rollActive, rollT, 4.0f);
     advance(partyActive, partyT, 4.0f);
+    advance(breakdanceActive, breakdanceT, 4.0f);
     if (flipActive)
     {
         flipT = juce::jmin(1.0f, flipT + beatStep);
@@ -166,6 +185,15 @@ void KoiFish::setVibe(float e, float b, float p, float bp, int inten, int bar, f
         triggerMove(danceIndex++ % 2 == 0 ? MoveType::Twerk : MoveType::Worm);
     }
 
+    if (!gentleMotion && !isMoveBusy() && breakdanceCooldown <= 0.0f && pulse > 0.94f && energy > 0.65f && intensity == 2)
+    {
+        triggerMove(MoveType::Breakdance);
+    }
+    else if (!isMoveBusy() && moveCooldown <= 0.0f && pulse > 0.88f && energy > 0.40f && intensity >= 1)
+    {
+        triggerMove(MoveType::Flip);
+    }
+
     if (!isMoveBusy() && moveCooldown <= 0.0f && mouseActive && mouseFlipCooldown <= 0.0f
         && ((facingRight && mousePos.x < fishCx - 45.0f) || (!facingRight && mousePos.x > fishCx + 45.0f)))
         triggerMove(MoveType::Flip);
@@ -188,7 +216,8 @@ void KoiFish::triggerMove(MoveType move)
     if (isMoveBusy())
     {
         const bool same = (move == MoveType::Worm && wormActive) || (move == MoveType::Roll && rollActive)
-            || (move == MoveType::Spin && partyActive) || (move == MoveType::Flip && flipActive) || move == extraMove;
+            || (move == MoveType::Spin && partyActive) || (move == MoveType::Flip && flipActive)
+            || (move == MoveType::Breakdance && breakdanceActive) || move == extraMove;
         if (!same) queuedMove = move; // Latest request wins, after a clean landing.
         return;
     }
@@ -205,6 +234,12 @@ void KoiFish::triggerMove(MoveType move)
         case MoveType::Roll: rollActive = true; rollT = 0.0f; break;
         case MoveType::Spin: partyActive = true; partyT = 0.0f; break;
         case MoveType::Flip: flipActive = true; flipT = 0.0f; flipMid = false; break;
+        case MoveType::Breakdance:
+            breakdanceActive = true;
+            breakdanceT = 0.0f;
+            breakdanceJustTriggered = true;
+            breakdanceCooldown = 10.0f;
+            break;
         default: extraMove = move; extraT = 0.0f; break;
     }
 }
@@ -269,9 +304,23 @@ void KoiFish::buildGrid(std::vector<char>& grid)
         if (extraMove == MoveType::Shimmy)
             wy += std::sin(danceBeat * 4.0f * kPi - u * 4.0f) * 2.5f * (1.0f - u) * envelope;
 
+        float bdThrust = 0.0f;
+        if (breakdanceActive)
+        {
+            const float bt = juce::jlimit(0.0f, 1.0f, breakdanceT);
+            const float motion = gentleMotion ? 0.20f : 1.0f;
+            const float spin = breakdanceSpin(bt) * motion;
+            const float freeze = danceEase(0.62f, 0.72f, bt) * breakdancePlant(bt) * motion;
+            const float whipAngle = danceEase(0.22f, 0.70f, bt) * 4.0f * kPi - u * 3.0f;
+            // A modest trailing tail, with a stable head, preserves the silhouette.
+            wy += std::sin(whipAngle) * (1.0f - u) * 2.8f * spin;
+            bdThrust = std::cos(whipAngle) * (1.0f - u) * 0.8f * spin;
+            wy += (std::sin(u * kPi) * 2.5f - (1.0f - u) * 1.5f) * freeze;
+        }
+
         const float hipThrust = extraMove == MoveType::Twerk
             ? 1.8f * std::sin(danceBeat * 2.0f * kPi) * std::pow(1.0f - u, 2.0f) * envelope : 0.0f;
-        sp[(size_t) i] = { 7.0f + u * 22.0f + hipThrust,
+        sp[(size_t) i] = { 7.0f + u * 22.0f + hipThrust + bdThrust,
                            wy,
                            (1.4f + 4.2f * std::pow(u, 0.6f)) * breathe,
                            u };
@@ -573,6 +622,24 @@ void KoiFish::paint(juce::Graphics& g)
         squashX *= (1.0f + 0.08f * std::sin(theta));
     }
 
+    // Dance Move: Breakdance (Headspin to Freeze combo)
+    if (breakdanceActive)
+    {
+        const float p = juce::jlimit(0.0f, 1.0f, breakdanceT);
+        const float dir = facingRight ? 1.0f : -1.0f;
+        const float plant = breakdancePlant(p);
+        const float spin = breakdanceSpin(p);
+        const float angle = danceEase(0.22f, 0.70f, p) * 4.0f * kPi;
+        const float freeze = danceEase(0.62f, 0.72f, p);
+        spinA = spinA * (1.0f - plant)
+            + dir * (0.5f * kPi - 0.08f * kPi * freeze) * plant
+            + dir * std::sin(angle) * 0.10f * spin;
+        // Once upright, local X is the fish's length. Compress its width (Y)
+        // gently to suggest a headspin without repeatedly telescoping the body.
+        squashX += (1.0f - squashX) * plant;
+        squashY += (1.0f - 0.20f * spin * std::pow(std::sin(angle), 2.0f) - squashY) * plant;
+    }
+
     const float env = std::pow(std::sin(kPi * extraT), 2.0f);
     const float beat = danceBeat * 2.0f * kPi;
     const float direction = facingRight ? 1.0f : -1.0f;
@@ -651,8 +718,25 @@ void KoiFish::paint(juce::Graphics& g)
     const float originY = oy + GRID_H * 0.5f * pixel;
     // Rasterise a connected pixel sprite once, then transform it as a whole.
     // Scaling pixel positions individually leaves holes between fixed-size cells.
-    const auto fishTransform = juce::AffineTransform::translation(-originX, -originY)
+    auto fishTransform = juce::AffineTransform::translation(-originX, -originY)
         .scaled(squashX, squashY).rotated(spinA).translated(cx, cy);
+    if (breakdanceActive && !gentleMotion)
+    {
+        // Blend into a fixed head contact, then release over the last beat.
+        // Use the rendered mouth so raster spine changes cannot move the pivot.
+        const int mouthX = facingRight ? mouthGX : GRID_W - 1 - mouthGX;
+        const auto mouth = juce::Point<float>(ox + (mouthX + 0.5f) * pixel,
+            oy + (mouthGY + 0.5f) * pixel).transformedBy(fishTransform);
+        const juce::Point<float> contact(w * 0.5f + (facingRight ? 1.0f : -1.0f) * 12.0f * pixel,
+                                        h * 0.80f);
+        const auto correction = (contact - mouth) * breakdancePlant(breakdanceT);
+        fishTransform = fishTransform.translated(correction.x, correction.y);
+        cx += correction.x;
+        cy += correction.y;
+        fishCx = cx;
+        fishCy = cy;
+    }
+
 
     if (spriteImg.isNull() || spriteImg.getWidth() != (int) w || spriteImg.getHeight() != (int) h)
         spriteImg = juce::Image(juce::Image::ARGB, (int) w, (int) h, true, juce::SoftwareImageType());
@@ -684,6 +768,29 @@ void KoiFish::paint(juce::Graphics& g)
 
     const int msx = facingRight ? mouthGX : GRID_W - 1 - mouthGX;
     mouthPos = juce::Point<float>(ox + (msx + 0.5f) * pixel, oy + (mouthGY + 0.5f) * pixel).transformedBy(fishTransform);
+    floorContactPos = mouthPos;
+
+    if (breakdanceActive && !gentleMotion && breakdanceT >= 0.22f && breakdanceT <= 0.70f)
+    {
+        float spinP = (breakdanceT - 0.22f) * 25.0f;
+        for (int k = 0; k < 6; ++k)
+        {
+            float a = spinP + (float) k * (kPi / 3.0f);
+            float dist = (10.0f + 18.0f * std::fmod(spinP * 0.4f + (float) k * 0.3f, 1.0f)) * (float) pixel * 0.35f;
+            float px = floorContactPos.x + std::cos(a) * dist;
+            float py = floorContactPos.y + std::abs(std::sin(a)) * dist * 0.35f;
+            float particleAlpha = 0.55f * breakdanceSpin(breakdanceT) * (1.0f - std::fmod(spinP * 0.4f + (float) k * 0.3f, 1.0f));
+            g.setColour(juce::Colour(0xFFD2B48C).withAlpha(particleAlpha));
+            g.fillRect(px, py, (float) pixel, (float) pixel);
+        }
+    }
+    if (breakdanceActive && !gentleMotion && breakdanceT > 0.72f && breakdanceT <= 0.84f)
+    {
+        float freezeRing = (breakdanceT - 0.72f) / 0.12f;
+        float r = freezeRing * 32.0f;
+        g.setColour(juce::Colour(0xFFFFE9A8).withAlpha(0.65f * std::sin(kPi * freezeRing)));
+        g.drawEllipse(floorContactPos.x - r, floorContactPos.y - r * 0.35f, r * 2.0f, r * 0.7f, 2.0f);
+    }
 
     if (shadesT > 0.005f)
     {

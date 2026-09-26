@@ -9,6 +9,7 @@ public:
     void setEnabled(bool on) { enabled = on; }
     void update(float energy, juce::Point<float> mouth);
     void burst(juce::Point<float> mouth);
+    void vortex(juce::Point<float> center);
     void paint(juce::Graphics& g) override;
 
 private:

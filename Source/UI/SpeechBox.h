@@ -6,6 +6,7 @@ class SpeechBox : public juce::Component
 public:
     SpeechBox();
     void update(double nowSec, float energy, int intensity, float speechRateSec, juce::Random& rng);
+    void shout(const juce::String& text, double nowSec);
     void paint(juce::Graphics& g) override;
     bool hasText() const { return alpha > 0.01f; }
 

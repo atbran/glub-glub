@@ -167,6 +167,21 @@ void GlubGlubEditor::timerCallback()
     fish.setGentleMotion(proc.apvts.getRawParameterValue("gentleMotion")->load() > 0.5f);
     fish.setVibe(energy, bright, pulse, phase, inten, bar, feed, hypeLevel, dt, proc.vibe.bpm.load());
 
+    if (fish.consumeBreakdanceTriggered())
+    {
+        static const char* bdShouts[] = {
+            "BREAK IT DOWN!!",
+            "HEADSPIN GLUB!!",
+            "FREEZE!!",
+            "DROP THE BASS, GLUB!!",
+            "WINDMILL POWER!!",
+            "B-BOY KOI IN THE TANK!!"
+        };
+        int idx = (int) (rng.nextFloat() * 6.0f) % 6;
+        speech.shout(bdShouts[idx], now);
+        bubbles.vortex(fish.getFloorContactPos());
+    }
+
     hype.setHype(hypeLevel);
     disco.update(hypeLevel, now);
 
@@ -200,6 +215,8 @@ void GlubGlubEditor::timerCallback()
     bubbles.setEnabled(bubblesOn);
     if (bubblesOn && inten == 2 && pulse > 0.75f)
         bubbles.burst(fish.getMouthPosition());
+    if (bubblesOn && fish.isBreakdancing() && rng.nextFloat() < 0.25f)
+        bubbles.vortex(fish.getFloorContactPos());
     bubbles.update(energy, fish.getMouthPosition());
     speech.update(now, energy, inten, speechRate, rng);
 }

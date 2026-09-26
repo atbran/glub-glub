@@ -30,6 +30,19 @@ void Bubbles::burst(juce::Point<float> mouth)
         pool.push_back({ mouth.x + rng.nextFloat() * 10 - 5, mouth.y + rng.nextFloat() * 4, 2 + rng.nextFloat() * 3, 24 + rng.nextFloat() * 26, rng.nextFloat() * 6.28f, 0.9f });
 }
 
+void Bubbles::vortex(juce::Point<float> center)
+{
+    if (!enabled || pool.size() > 30) return;
+    for (int i = 0; i < 8; ++i)
+    {
+        float angle = rng.nextFloat() * 6.2831853f;
+        float dist = 6.0f + rng.nextFloat() * 20.0f;
+        float bx = center.x + std::cos(angle) * dist;
+        float by = center.y + std::sin(angle) * dist * 0.4f;
+        pool.push_back({ bx, by, 2.0f + rng.nextFloat() * 3.0f, 26.0f + rng.nextFloat() * 32.0f, rng.nextFloat() * 6.28f, 0.95f });
+    }
+}
+
 void Bubbles::paint(juce::Graphics& g)
 {
     g.setColour(juce::Colour(0x99BEE9E8));

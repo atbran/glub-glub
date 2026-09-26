@@ -5,7 +5,7 @@
 class KoiFish : public juce::Component
 {
 public:
-    enum class MoveType { None, Worm, Roll, Spin, Flip, Shuffle, HeadBop, Shimmy, FigureEight, Twerk };
+    enum class MoveType { None, Worm, Roll, Spin, Flip, Shuffle, HeadBop, Shimmy, FigureEight, Twerk, Breakdance };
 
     KoiFish();
     void setVibe(float energy, float brightness, float pulse, float beatPhase, int intensity, int barCount, float feedBoost, float hypeLevel = 0.0f, float deltaSeconds = 1.0f / 60.0f, float bpm = 120.0f);
@@ -14,6 +14,14 @@ public:
     void setMouseTarget(juce::Point<float> pos, bool inWindow);
     void triggerStartle(juce::Point<float> tapPos);
     void triggerMove(MoveType move);
+    bool isBreakdancing() const { return breakdanceActive; }
+    bool consumeBreakdanceTriggered()
+    {
+        bool triggered = breakdanceJustTriggered;
+        breakdanceJustTriggered = false;
+        return triggered;
+    }
+    juce::Point<float> getFloorContactPos() const { return floorContactPos; }
     juce::Point<float> getMouthPosition() const;
     void paint(juce::Graphics& g) override;
 
@@ -53,6 +61,13 @@ private:
     // Dance Move 2: The Barrel Roll (3D corkscrew loop)
     bool rollActive = false;
     float rollT = 0.0f;
+
+    // Dance Move: Breakdance (Headspin to Freeze combo)
+    bool breakdanceActive = false;
+    float breakdanceT = 0.0f;
+    float breakdanceCooldown = 0.0f;
+    bool breakdanceJustTriggered = false;
+    juce::Point<float> floorContactPos { 0, 0 };
 
     // Fun Addition 1: Deal With It Party Shades
     float shadesT = 0.0f;

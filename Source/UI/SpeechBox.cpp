@@ -71,6 +71,15 @@ void SpeechBox::update(double nowSec, float energy, int intensity, float speechR
     if (alpha > 0.02f) repaint();
 }
 
+void SpeechBox::shout(const juce::String& text, double nowSec)
+{
+    current = text;
+    shownAt = nowSec;
+    lastChange = nowSec;
+    alpha = 1.0f;
+    repaint();
+}
+
 void SpeechBox::paint(juce::Graphics& g)
 {
     if (alpha <= 0.02f || current.isEmpty()) return;

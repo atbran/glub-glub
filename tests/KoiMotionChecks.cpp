@@ -125,13 +125,62 @@ struct KoiMotionChecks
         check(std::abs(rearDown - rearUp) > 6.0f && headDown.getDistanceFrom(twerker.mouthPos) < 28.0f,
               "Twerk moves the rear strongly while keeping the head relatively planted");
 
+        KoiFish breaker;
+        breaker.setSize(500, 388);
+        breaker.triggerMove(KoiFish::MoveType::Breakdance);
+        check(breaker.breakdanceActive, "Breakdance triggers cleanly");
+        for (int i = 0; i < 60; ++i) breaker.setVibe(0.8f, 0.5f, 0.95f, std::fmod(i * 128.0f / 3600.0f, 1.0f), 2, 1, 0, 0.9f, 1.0f / 60.0f, 128.0f);
+        check(breaker.breakdanceActive && breaker.breakdanceT > 0.4f, "Breakdance advances through headspin phase");
+
+        // Isolate phase boundaries from the host clock and raster quantisation.
+        for (const bool right : { false, true })
+        {
+            KoiFish dancer;
+            dancer.setSize(500, 388);
+            dancer.facingRight = right;
+            dancer.breakdanceActive = true;
+            auto renderAt = [&](float progress)
+            {
+                dancer.breakdanceT = progress;
+                juce::Image image(juce::Image::ARGB, 500, 388, true, juce::SoftwareImageType());
+                juce::Graphics g(image);
+                dancer.paint(g);
+                return image;
+            };
+            for (float boundary : { 0.20f, 0.22f, 0.62f, 0.68f, 0.72f, 0.78f, 0.92f, 1.0f })
+            {
+                const auto before = renderAt(boundary - 0.00001f);
+                const auto after = renderAt(boundary + 0.00001f);
+                int changed = 0;
+                for (int y = 0; y < 388; ++y)
+                    for (int x = 0; x < 500; ++x)
+                        if (std::abs((int) before.getPixelAt(x, y).getAlpha()
+                                   - (int) after.getPixelAt(x, y).getAlpha()) > 64) ++changed;
+                std::cout << "Breakdance boundary " << boundary << " changed pixels: " << changed << '\n';
+                check(changed < 150, "Breakdance silhouette blends across phase boundaries");
+            }
+            renderAt(0.3f);
+            const auto planted = dancer.getMouthPosition();
+            float maxDrift = 0;
+            for (int sample = 0; sample <= 40; ++sample)
+            {
+                dancer.danceBeat = sample / 40.0f;
+                dancer.energy = 0.8f;
+                dancer.swimPhase = sample * 0.2f;
+                renderAt(0.3f + sample * 0.01f);
+                maxDrift = juce::jmax(maxDrift, planted.getDistanceFrom(dancer.getMouthPosition()));
+            }
+            std::cout << "Headspin contact drift: " << maxDrift << '\n';
+            check(maxDrift < 1.0f, "Headspin keeps contact planted through beats and tail motion");
+        }
+
         const auto output = juce::File::getCurrentWorkingDirectory().getChildFile("build-msvc/motion-review");
         output.createDirectory();
-        const char* names[] = { "Worm", "Barrel Roll", "Spin", "Flip", "Shuffle", "Head Bop", "Tail Shimmy", "Figure Eight", "Twerk" };
-        juce::Image sheet(juce::Image::RGB, 1000, 9 * 180, true, juce::SoftwareImageType());
+        const char* names[] = { "Worm", "Barrel Roll", "Spin", "Flip", "Shuffle", "Head Bop", "Tail Shimmy", "Figure Eight", "Twerk", "Breakdance" };
+        juce::Image sheet(juce::Image::RGB, 1000, 10 * 180, true, juce::SoftwareImageType());
         juce::Graphics sg(sheet);
         sg.fillAll(juce::Colour(0xff183448));
-        for (int move = 1; move <= 9; ++move)
+        for (int move = 1; move <= 10; ++move)
         {
             KoiFish dancer;
             dancer.setSize(500, 388);
@@ -162,9 +211,9 @@ struct KoiMotionChecks
                 }
                 if (frameIndex % snapshotStride == 0 && frameIndex / snapshotStride < 5)
                     sg.drawImage(rendered, juce::Rectangle<float>((frameIndex / snapshotStride) * 200.0f, (move - 1) * 180.0f + 20, 200, 155));
-                if (move == 2 || move == 8 || move == 9)
+                if (move == 2 || move == 8 || move == 9 || move == 10)
                 {
-                    auto file = output.getChildFile(juce::String(move == 2 ? "roll-" : move == 8 ? "eight-" : "twerk-") + juce::String(frameIndex).paddedLeft('0', 3) + ".png");
+                    auto file = output.getChildFile(juce::String(move == 2 ? "roll-" : move == 8 ? "eight-" : move == 9 ? "twerk-" : "breakdance-") + juce::String(frameIndex).paddedLeft('0', 3) + ".png");
                     juce::FileOutputStream stream(file);
                     stream.setPosition(0); stream.truncate();
                     juce::PNGImageFormat().writeImageToStream(rendered, stream);

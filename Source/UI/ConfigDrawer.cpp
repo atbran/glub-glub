@@ -37,8 +37,8 @@ ConfigDrawer::ConfigDrawer(juce::AudioProcessorValueTreeState& s) : state(s)
     glassesAtt = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(state, "glassesOn", glassesBtn);
     gentleAtt = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(state, "gentleMotion", gentleBtn);
 
-    const char* names[] = { "The Worm", "Barrel Roll", "Spin", "Flip", "Shuffle", "Head Bop", "Tail Shimmy", "Figure Eight", "Twerk" };
-    for (int i = 0; i < 9; ++i) movePicker.addItem(names[i], i + 1);
+    const char* names[] = { "The Worm", "Barrel Roll", "Spin", "Flip", "Shuffle", "Head Bop", "Tail Shimmy", "Figure Eight", "Twerk", "Breakdance" };
+    for (int i = 0; i < 10; ++i) movePicker.addItem(names[i], i + 1);
     movePicker.setSelectedId(1, juce::dontSendNotification);
     movePicker.setTooltip("Choose a move, then press Dance. A new move waits for the current move to finish.");
     addAndMakeVisible(movePicker);
