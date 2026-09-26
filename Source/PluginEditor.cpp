@@ -8,12 +8,14 @@ GlubGlubEditor::GlubGlubEditor(GlubGlubProcessor& p)
     setResizable(true, true);
     setResizeLimits(360, 360, 1024, 1024);
 
-    addAndMakeVisible(scene);
-    addAndMakeVisible(fish);
-    addAndMakeVisible(bubbles);
-    addAndMakeVisible(disco);
+    addAndMakeVisible(world);
+    world.setInterceptsMouseClicks(false, true);
+    world.addAndMakeVisible(scene);
+    world.addAndMakeVisible(fish);
+    world.addAndMakeVisible(bubbles);
+    world.addAndMakeVisible(disco);
+    world.addAndMakeVisible(shaker);
     addAndMakeVisible(speech);
-    addAndMakeVisible(shaker);
     addAndMakeVisible(hype);
     addChildComponent(panel);
     addAndMakeVisible(tankBtn);
@@ -78,6 +80,7 @@ void GlubGlubEditor::resized()
     tankBtn.setBounds(bar.removeFromLeft(78).reduced(4, 3));
     levelBadgeArea = bar.withSizeKeepingCentre(juce::jmin(170, bar.getWidth() - 200), bar.getHeight()).reduced(0, 4);
 
+    world.setBounds(b); // at the origin, so world and editor coordinates match unzoomed
     scene.setBounds(b);
     auto swim = b.withTrimmedBottom(speechHeight);
     speech.setBounds(b.getX(), swim.getBottom(), b.getWidth(), speechHeight);
@@ -228,6 +231,7 @@ void GlubGlubEditor::timerCallback()
     frame.tankMates = param("tankMates") > 0.5f;
     scene.setTheme(static_cast<TankScene::Theme>(juce::jlimit(0, 2, (int) param("theme"))), param("hue"));
     scene.update(frame, now, dt);
+    updateCamera(hypeLevel, phase, dt);
 
     // ---- XP: dancing to real music (faster when hyped), petting, big moves ----
     if (energy > 0.15f)
@@ -287,19 +291,50 @@ void GlubGlubEditor::mouseDown(const juce::MouseEvent& e)
         panelWanted = false; // Clicking the water closes the panel.
         return;
     }
-    scene.addRipple(e.position);
-    fish.triggerStartle(e.position);
+    scene.addRipple(scene.getLocalPoint(this, e.position));
+    fish.triggerStartle(fish.getLocalPoint(this, e.position));
     bubbles.burst(fish.getMouthPosition());
 }
 
 void GlubGlubEditor::mouseMove(const juce::MouseEvent& e)
 {
-    fish.setMouseTarget(e.position, true);
+    fish.setMouseTarget(fish.getLocalPoint(this, e.position), true);
 }
 
 void GlubGlubEditor::mouseDrag(const juce::MouseEvent& e)
 {
-    fish.setMouseTarget(e.position, true);
+    fish.setMouseTarget(fish.getLocalPoint(this, e.position), true);
+}
+
+void GlubGlubEditor::updateCamera(float hypeLevel, float beatPhase, float dt)
+{
+    // Fades in only when hype is near the top, and never in gentle mode.
+    const bool gentle = proc.apvts.getRawParameterValue("gentleMotion")->load() > 0.5f;
+    const float target = gentle ? 0.0f : juce::jlimit(0.0f, 1.0f, (hypeLevel - 0.80f) / 0.12f);
+    cameraAmount += (target - cameraAmount) * (1.0f - std::exp(-dt / 0.8f));
+
+    // Punch in on each beat over a few milliseconds, then ease back out:
+    // continuous across the wrap, so the camera never pops.
+    float punch = 0.0f;
+    if (beatPhase >= 0.0f)
+        punch = beatPhase < 0.06f ? juce::jmap(beatPhase, 0.0f, 0.06f, 0.0f, 1.0f)
+                                  : std::pow(1.0f - (beatPhase - 0.06f) / 0.94f, 3.0f);
+    const float zoom = 1.0f + cameraAmount * (0.025f + 0.035f * punch); // at most ~6%
+
+    // Frame Glub, leaning toward the tank centre so the camera doesn't chase every move.
+    const auto tankCentre = world.getLocalBounds().toFloat().getCentre();
+    const auto target2 = tankCentre + (fish.getBodyCentre() + fish.getPosition().toFloat() - tankCentre) * 0.6f;
+    if (cameraFocus.isOrigin()) cameraFocus = target2;
+    cameraFocus += (target2 - cameraFocus) * (1.0f - std::exp(-dt / 0.35f));
+
+    if (std::abs(zoom - cameraZoom) < 0.0005f && zoom > 1.0005f == cameraZoom > 1.0005f) return;
+    cameraZoom = zoom;
+    const auto transform = cameraZoom > 1.0005f
+        ? juce::AffineTransform::scale(cameraZoom, cameraZoom, cameraFocus.x, cameraFocus.y)
+        : juce::AffineTransform();
+    for (juce::Component* c : { (juce::Component*) &scene, (juce::Component*) &fish, (juce::Component*) &bubbles,
+                                (juce::Component*) &disco, (juce::Component*) &shaker })
+        c->setTransform(transform);
 }
 
 void GlubGlubEditor::mouseExit(const juce::MouseEvent&)

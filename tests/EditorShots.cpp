@@ -120,19 +120,26 @@ struct EditorShots
         // then GIF frames at 15 fps.
         setParam("theme", 0);
         setParam("glassesOn", 1);
+        setParam("hypeSensitivity", 2.0f); // push the meter to the top so the camera kicks in
         run(12.0, 128.0, 1.4f);
         shot("hero");
         auto gifDir = out.getChildFile("gif");
         gifDir.deleteRecursively();
         gifDir.createDirectory();
+        float minZoom = 10.0f, maxZoom = 0.0f;
         run(8.0, 128.0, 1.4f, [&](int f, const juce::Image& image)
         {
+            minZoom = juce::jmin(minZoom, editor->cameraZoom);
+            maxZoom = juce::jmax(maxZoom, editor->cameraZoom);
             if (f % 4 != 0) return;
             juce::FileOutputStream frameStream(gifDir.getChildFile(juce::String(f / 4).paddedLeft('0', 3) + ".png"));
             juce::PNGImageFormat().writeImageToStream(image, frameStream);
         });
         std::cout << "disco showing: " << editor->disco.isShowing() << std::endl;
+        std::cout << "camera amount " << editor->cameraAmount << " loudness " << proc.vibe.loudness.load() << std::endl;
+        std::cout << "camera zoom at max hype: " << minZoom << " .. " << maxZoom << std::endl;
         setParam("glassesOn", 0);
+        setParam("hypeSensitivity", 1.0f);
 
         editor->panelWanted = true;
         run(1.0, 124.0, 0.5f);

@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased (2.1)
+
+- **Camera punch at max hype.** When hype is near the top, the tank gently zooms in on
+  Glub and bumps in on every beat (about 2.5% at rest, 6% on the beat). The HUD stays
+  still, and gentle mode turns it off.
+- **Hype sensitivity slider** (0.5x–2x): how loud the music must be to fill the HYPE
+  meter, separate from the "vibe" dance sensitivity.
+- **Worm mode:** a toggle that makes about half of his automatic moves the worm (about
+  five times its usual share), dancing every bar. Switching it on starts a worm right away.
+- **Petting:** stroke Glub slowly with the cursor for happy "^" eyes, extra blush,
+  hearts and a wag. He pauses dancing to enjoy it.
+- **XP and levels:** Glub is now a persistent pet, the same fish in every project and
+  DAW. He earns XP from dancing (faster when hyped), eating, petting and breakdancing.
+  Level-ups bring confetti and an announcement.
+- **Wardrobe unlocks:** party hat (Lv 2), goldfish skin (3), gold chain (4), shubunkin
+  skin (5), crown (6), neon skin (8), golden skin (10).
+- **Tabbed control panel:** *tank* (sliders, theme, toggles), *dance* (moves + worm
+  mode), *glub* (level card and wardrobe). A level badge and XP bar sit on the stand.
+
 ## 2.0.0 — 2026-09-26
 
 Glub-Glub 2.0 is a full overhaul: he hears the beat himself, lives in a real tank,

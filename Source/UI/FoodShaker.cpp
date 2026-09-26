@@ -113,7 +113,8 @@ void FoodShaker::paint(juce::Graphics& g)
 void FoodShaker::mouseDown(const juce::MouseEvent& e)
 {
     dragging = true;
-    auto parentPos = e.getEventRelativeTo(getParentComponent()).getPosition();
+    // Own local space (+ our offset), so dragging stays exact while the camera zooms the tank.
+    auto parentPos = e.getEventRelativeTo(this).getPosition() + getBounds().getTopLeft();
     dragOffset = parentPos - canPos;
     lastPos = parentPos.toFloat();
     lastMoveTime = lastFrameTime;
@@ -124,7 +125,8 @@ void FoodShaker::mouseDrag(const juce::MouseEvent& e)
 {
     if (! dragging) return;
 
-    auto parentPos = e.getEventRelativeTo(getParentComponent()).getPosition();
+    // Own local space (+ our offset), so dragging stays exact while the camera zooms the tank.
+    auto parentPos = e.getEventRelativeTo(this).getPosition() + getBounds().getTopLeft();
     canPos = parentPos - dragOffset;
 
     double now = lastFrameTime;

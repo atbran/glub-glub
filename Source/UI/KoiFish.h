@@ -47,6 +47,7 @@ public:
     }
     juce::Point<float> getFloorContactPos() const { return floorContactPos; }
     juce::Point<float> getMouthPosition() const;
+    juce::Point<float> getBodyCentre() const { return { fishCx, fishCy }; }
     void paint(juce::Graphics& g) override;
 
     static constexpr int GRID_W = 36;

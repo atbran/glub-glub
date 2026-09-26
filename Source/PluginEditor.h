@@ -40,6 +40,8 @@ private:
     juce::SharedResourcePointer<GlubProgress> progress; // one pet shared by every instance
     PixelLookAndFeel lnf;
     juce::TooltipWindow tooltips { this, 700 };
+    // Everything the camera sees; the HUD (speech, meter, panel) stays outside.
+    juce::Component world;
     TankScene scene;
     KoiFish fish;
     Bubbles bubbles;
@@ -65,6 +67,11 @@ private:
     int seenLevelUps = 0, shownXp = -1;
     bool lastWormMode = false;
     juce::Rectangle<int> levelBadgeArea;
+
+    // Beat-synced camera punch at max hype: gentle, just enough to feel it.
+    void updateCamera(float hypeLevel, float beatPhase, float dt);
+    float cameraAmount = 0.0f, cameraZoom = 1.0f;
+    juce::Point<float> cameraFocus;
     HypeEnvelope hypeEnvelope;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GlubGlubEditor)
