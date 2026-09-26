@@ -1,5 +1,7 @@
 #pragma once
 #include <juce_gui_basics/juce_gui_basics.h>
+#include <array>
+#include <optional>
 #include <vector>
 
 class KoiFish : public juce::Component
@@ -14,7 +16,14 @@ public:
     void setMouseTarget(juce::Point<float> pos, bool inWindow);
     void triggerStartle(juce::Point<float> tapPos);
     void triggerMove(MoveType move);
-    bool isBreakdancing() const { return breakdanceActive; }
+    bool isBreakdancing() const { return activeMove == MoveType::Breakdance; }
+    MoveType getActiveMove() const { return activeMove; }
+
+    // Food: the koi swims its mouth toward the target pellet; chomp() when it lands.
+    void setFoodTarget(std::optional<juce::Point<float>> pellet) { foodTarget = pellet; }
+    void chomp();
+    bool isChasingFood() const { return foodTarget.has_value(); }
+    float getFullness() const { return fullness; }
     bool consumeBreakdanceTriggered()
     {
         bool triggered = breakdanceJustTriggered;
@@ -38,36 +47,33 @@ private:
     float danceBeat = 0.0f, moveCooldown = 0.0f;
     float previousBeat = -1.0f, beatIdleTime = 0.0f, beatStep = 0.0f;
     int lastDanceBar = -1, danceIndex = 0;
-    MoveType extraMove = MoveType::None;
-    float extraT = 0.0f;
     bool glassesOn = false, gentleMotion = false;
     bool isMoveBusy() const;
+    bool doing(MoveType move) const { return activeMove == move; }
+    static float moveBeats(MoveType move);
     static juce::Point<float> figureEightPath(float progress, float width, float height);
     bool facingRight = true;
     float tailBurst = 0.0f;
-    float flipT = 0.0f;
-    bool flipActive = false, flipMid = false;
+    bool flipMid = false;
     float calmTime = 0.0f;
     bool sleepy = false;
-    float partyT = 0.0f;
-    bool partyActive = false;
 
+    // One move at a time; progress runs 0..1 over moveBeats() host beats.
+    MoveType activeMove = MoveType::None;
+    float moveT = 0.0f;
     MoveType queuedMove = MoveType::None;
 
-    // Dance Move 1: The Worm (Breakdance wave ripple)
-    bool wormActive = false;
-    float wormT = 0.0f;
-
-    // Dance Move 2: The Barrel Roll (3D corkscrew loop)
-    bool rollActive = false;
-    float rollT = 0.0f;
-
-    // Dance Move: Breakdance (Headspin to Freeze combo)
-    bool breakdanceActive = false;
-    float breakdanceT = 0.0f;
     float breakdanceCooldown = 0.0f;
     bool breakdanceJustTriggered = false;
     juce::Point<float> floorContactPos { 0, 0 };
+
+    // Feeding: roaming offset from the tank centre, spring-driven toward food.
+    std::optional<juce::Point<float>> foodTarget;
+    juce::Point<float> roam { 0, 0 }, roamVel { 0, 0 };
+    float chaseAmt = 0.0f, chompT = 0.0f, fullness = 0.0f;
+    struct Heart { float x = 0, y = 0, age = 1.0f; };
+    std::array<Heart, 6> hearts {};
+    int nextHeart = 0;
 
     // Fun Addition 1: Deal With It Party Shades
     float shadesT = 0.0f;
@@ -85,6 +91,7 @@ private:
     int mouthGX = 33, mouthGY = 13;
     juce::Point<float> mouthPos { 0, 0 };
     juce::Image spriteImg;
+    juce::Point<float> spriteOrigin { 0, 0 };
 
     void buildGrid(std::vector<char>& grid);
 };

@@ -8,8 +8,8 @@ struct KoiMotionChecks
     {
         KoiFish fish;
         fish.setSize(500, 388);
-        fish.rollActive = true;
-        fish.rollT = 0.2f;
+        fish.activeMove = KoiFish::MoveType::Roll;
+        fish.moveT = 0.2f;
         juce::Image frame(juce::Image::ARGB, 500, 388, true, juce::SoftwareImageType());
         juce::Graphics graphics(frame);
         fish.paint(graphics);
@@ -20,15 +20,15 @@ struct KoiMotionChecks
         {
             int first = -1, last = -1;
             for (int x = 255; x < 350; ++x)
-                if (fish.spriteImg.getPixelAt(x, y).getAlpha() > 128)
+                if (fish.spriteImg.getPixelAt(x - (int) fish.spriteOrigin.x, y - (int) fish.spriteOrigin.y).getAlpha() > 128)
                 { if (first < 0) first = x; last = x; }
             for (int x = first + 1; first >= 0 && x < last; ++x)
-                if (fish.spriteImg.getPixelAt(x, y).getAlpha() < 16) ++holes;
+                if (fish.spriteImg.getPixelAt(x - (int) fish.spriteOrigin.x, y - (int) fish.spriteOrigin.y).getAlpha() < 16) ++holes;
         }
         std::cout << "Roll body transparent interior pixels: " << holes << '\n';
-        fish.rollT = 0.4f;
+        fish.moveT = 0.4f;
         fish.triggerMove(KoiFish::MoveType::Roll);
-        const bool continuous = fish.rollActive && fish.rollT == 0.4f;
+        const bool continuous = fish.doing(KoiFish::MoveType::Roll) && fish.moveT == 0.4f;
         std::cout << "Repeated move preserves active progress: " << continuous << '\n';
         bool passed = holes == 0 && continuous;
         auto check = [&](bool ok, const char* label)
@@ -37,9 +37,9 @@ struct KoiMotionChecks
             passed &= ok;
         };
         fish.triggerMove(KoiFish::MoveType::Twerk);
-        check(fish.rollActive && fish.queuedMove == KoiFish::MoveType::Twerk, "Different move queues without interrupting roll");
+        check(fish.doing(KoiFish::MoveType::Roll) && fish.queuedMove == KoiFish::MoveType::Twerk, "Different move queues without interrupting roll");
         for (int i = 0; i < 90; ++i) fish.setVibe(0, 0, 0, 0, 0, 1, 0);
-        check(fish.extraMove == KoiFish::MoveType::Twerk, "Queued twerk starts after roll lands");
+        check(fish.activeMove == KoiFish::MoveType::Twerk, "Queued twerk starts after roll lands");
 
         KoiFish thirty, sixty;
         for (int i = 0; i < 60; ++i) thirty.setVibe(0, 0, 0, -1, 0, 1, 0, 0, 1.0f / 30.0f);
@@ -89,9 +89,9 @@ struct KoiMotionChecks
         KoiFish quantised;
         quantised.setVibe(0, 0, 0, 0.35f, 0, 1, 0);
         quantised.triggerMove(KoiFish::MoveType::Roll);
-        check(!quantised.rollActive && quantised.queuedMove == KoiFish::MoveType::Roll, "Manual dance waits for a downbeat");
+        check(!quantised.doing(KoiFish::MoveType::Roll) && quantised.queuedMove == KoiFish::MoveType::Roll, "Manual dance waits for a downbeat");
         quantised.setVibe(0, 0, 0, 0.99f, 0, 1, 0);
-        check(quantised.rollActive, "Queued dance enters on the beat boundary");
+        check(quantised.doing(KoiFish::MoveType::Roll), "Queued dance enters on the beat boundary");
         for (const float tempo : { 90.0f, 128.0f, 174.0f })
         {
             KoiFish timed;
@@ -99,12 +99,12 @@ struct KoiMotionChecks
             const int ticks = (int) std::round(2.0f * 60.0f / tempo * 120.0f);
             for (int i = 0; i < ticks; ++i)
                 timed.setVibe(0, 0, 0, std::fmod((i + 1) * tempo / 7200.0f, 1.0f), 0, 1, 0, 0, 1.0f / 120, tempo);
-            check(std::abs(timed.rollT - 0.5f) < 0.01f, "Roll is halfway after two beats at different tempos");
+            check(std::abs(timed.moveT - 0.5f) < 0.01f, "Roll is halfway after two beats at different tempos");
         }
         KoiFish twerker;
         twerker.setSize(500, 388);
-        twerker.extraMove = KoiFish::MoveType::Twerk;
-        twerker.extraT = 0.5f;
+        twerker.activeMove = KoiFish::MoveType::Twerk;
+        twerker.moveT = 0.5f;
         auto rearHeight = [&]
         {
             std::vector<char> cells;
@@ -128,9 +128,9 @@ struct KoiMotionChecks
         KoiFish breaker;
         breaker.setSize(500, 388);
         breaker.triggerMove(KoiFish::MoveType::Breakdance);
-        check(breaker.breakdanceActive, "Breakdance triggers cleanly");
+        check(breaker.doing(KoiFish::MoveType::Breakdance), "Breakdance triggers cleanly");
         for (int i = 0; i < 60; ++i) breaker.setVibe(0.8f, 0.5f, 0.95f, std::fmod(i * 128.0f / 3600.0f, 1.0f), 2, 1, 0, 0.9f, 1.0f / 60.0f, 128.0f);
-        check(breaker.breakdanceActive && breaker.breakdanceT > 0.4f, "Breakdance advances through headspin phase");
+        check(breaker.doing(KoiFish::MoveType::Breakdance) && breaker.moveT > 0.4f, "Breakdance advances through headspin phase");
 
         // Isolate phase boundaries from the host clock and raster quantisation.
         for (const bool right : { false, true })
@@ -138,10 +138,10 @@ struct KoiMotionChecks
             KoiFish dancer;
             dancer.setSize(500, 388);
             dancer.facingRight = right;
-            dancer.breakdanceActive = true;
+            dancer.activeMove = KoiFish::MoveType::Breakdance;
             auto renderAt = [&](float progress)
             {
-                dancer.breakdanceT = progress;
+                dancer.moveT = progress;
                 juce::Image image(juce::Image::ARGB, 500, 388, true, juce::SoftwareImageType());
                 juce::Graphics g(image);
                 dancer.paint(g);
@@ -172,6 +172,32 @@ struct KoiMotionChecks
             }
             std::cout << "Headspin contact drift: " << maxDrift << '\n';
             check(maxDrift < 1.0f, "Headspin keeps contact planted through beats and tail motion");
+        }
+
+        // Feeding: the mouth must reach a pellet, dancing waits, and bites fill him up.
+        for (const auto pelletPos : { juce::Point<float>(380, 120), juce::Point<float>(90, 300) })
+        {
+            KoiFish diner;
+            diner.setSize(500, 388);
+            diner.paint(graphics);
+            diner.setFoodTarget(pelletPos);
+            float closest = 1.0e6f;
+            bool onlyTurns = true;
+            for (int i = 0; i < 180; ++i)
+            {
+                diner.setVibe(0.7f, 0.5f, 0.3f, -1, 2, i / 30, 1.0f, 0.9f);
+                onlyTurns &= diner.getActiveMove() == KoiFish::MoveType::None || diner.getActiveMove() == KoiFish::MoveType::Flip;
+                diner.paint(graphics);
+                closest = juce::jmin(closest, diner.getMouthPosition().getDistanceFrom(pelletPos));
+            }
+            check(onlyTurns, "Only turning around happens while chasing food");
+            std::cout << "Closest mouth approach to pellet: " << closest << std::endl;
+            check(closest < 14.0f, "Koi swims its mouth to the pellet within three seconds");
+            diner.chomp();
+            check(diner.getFullness() > 0.0f && diner.chompT == 1.0f, "Chomp fills the belly and opens the mouth");
+            diner.setFoodTarget(std::nullopt);
+            for (int i = 0; i < 240; ++i) { diner.setVibe(0, 0, 0, -1, 0, 1, 0); diner.paint(graphics); }
+            check(diner.roam.getDistanceFromOrigin() < 12.0f, "Koi drifts home after dinner");
         }
 
         const auto output = juce::File::getCurrentWorkingDirectory().getChildFile("build-msvc/motion-review");
