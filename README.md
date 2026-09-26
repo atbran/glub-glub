@@ -11,12 +11,38 @@ and throws a full disco party when the music gets wild. Run the standalone
 
 ![Glub-Glub party demo](docs/demo.gif)
 
+## What's new in 2.0
+
+![Lagoon, Midnight, Sunset and the control panel](docs/v2-tanks.png)
+
+- **He hears the beat himself.** A tempo tracker (onset autocorrelation + comb-filter
+  phase) locks to the music in the standalone app or a stopped DAW, with no host clock.
+  The HYPE meter shows the BPM and where it came from (`host` / `by ear`) with a beat light.
+- **Every dance move rebuilt** (except the Worm, which was already perfect). Each move now
+  bends the pixel body itself with a smooth envelope, one gesture per beat, like the Worm:
+  a true belly-up barrel roll, a C-curl pirouette, beat-stepped shuffles, a head-banging
+  bop, a see-saw shimmy, a figure eight that turns to face where it's going, and a
+  visible breakdance headspin.
+- **A living tank.** Pixel-art water, sand, rocks, coral and a sunken chest. Seaweed pumps with
+  the bass and snaps on kicks, coral glows with the mids, and light rays and plankton shimmer
+  with the highs. The chest burps a bubble every eighth kick.
+- **Three themes:** Lagoon, Midnight (bioluminescent), Sunset.
+- **Tank mates:** a school of neon tetras that wander, dodge the koi, and scatter on kicks.
+- **He eats!** Food settles on the sand, and Glub turns around, swims his mouth to each flake
+  and gulps it, with love hearts, a rounder belly, and opinions about the flavour.
+- **New control panel** in chunky pixel style. It slides up over the tank without resizing it,
+  and each move gets a one-click button that lights up while it plays.
+- Faster rendering (the koi sprite buffer shrank from window-sized to grid-sized), and a tail
+  fix: at full energy the fan used to break into a dark outline lattice.
+
+![Every move across its duration](docs/v2-moves.png)
+
 ## Features
 
 - **Transparent audio passthrough** — zero DSP on your sound, zero latency added, any channel count
 - **Kohaku pixel koi** — white body, orange-red patches, sumi spots, 3-tone shading for a near-3D pixel look
 - **Beat-locked dancing** — bobs exactly on quarter notes via the host BPM hook (Ableton etc.); free-dances from audio analysis when no BPM is available
-- **Nine dance moves** — worm, barrel roll, spin, flip, shuffle, head bop, tail shimmy, figure eight, and a beat-synced twerk. Automatic choreography gives bigger tricks room to breathe; manual requests queue after the current move.
+- **Ten dance moves** — worm, barrel roll, spin, flip, shuffle, head bop, tail shimmy, figure eight, a beat-synced twerk, and a breakdance headspin-to-freeze. Automatic choreography gives bigger tricks room to breathe; manual requests queue after the current move.
 - **Connected pixel rendering** — the body and glasses share one transform, keeping stretched pixels connected and the glasses attached through rolls and flips.
 - **Party tier** — pixel disco ball (rotating facets, sweeping specular highlight, twinkling rim stars) at medium hype, beat-stepped RGB water tint at high hype (smooth drift when no BPM)
 - **Idle life** — mouth bubbles, breathing, sleepy ZZZ mode after ~6 seconds of silence
@@ -62,14 +88,14 @@ the animation engine.
 
 - **In a DAW**: insert on any track, press play. He reads the host BPM and bobs on the grid.
 - **Standalone**: launch the exe, play music into the selected input device.
-- **Settings drawer** (bottom-left, click `settings`):
-  - *speech (s)* — speech bubble frequency, 30–90s (default ~60s)
+- **Feed him**: drag the red canister over the water and shake it.
+- **Tank panel** (bottom-left, click `tank`; click the water to close):
+  - *speech* — speech bubble frequency, 30–90s (default ~60s)
   - *vibe* — overall dance sensitivity (0.2–2.0)
-  - *hue* — tank water color shift
-- *bubbles* — toggle idle mouth bubbles
-- *glasses* — keep the Deal With It glasses on or off, with a smooth entrance/exit (off by default)
-- *gentle* — reduce travel and suppress full rotations
-- *move selector + Dance* — trigger any of the nine moves; repeated clicks do not restart a move midway
+  - *hue* — fine water colour shift on top of the theme
+  - *tank* — Lagoon / Midnight / Sunset
+  - *bubbles*, *shades* (Deal With It glasses), *gentle* (less travel, no full rotations), *tank mates*
+  - *dance!* — ten move buttons; a move you click waits for the current one to land and starts on the next downbeat
 
 Moves pick up a downbeat when host timing is available. Rolls, spins, and worms
 span four beats; the twerk and full figure eight span eight. The whole-body bounce
@@ -107,22 +133,33 @@ audio ──▶ AudioFeatures (RMS envelope, onset flux, brightness)
 
 ## Project layout
 
-For deterministic offscreen motion and hype checks, run `scripts\check-motion.bat`.
-It checks roll continuity, move queueing, update-rate independence, glasses toggling,
-and hype responses, and writes rendered move previews to `build-msvc/motion-review`.
+Checks (configure with `-DGLUB_BUILD_MOTION_CHECKS=ON`):
+
+- `KoiMotionChecks` (`scripts\check-motion.bat`): move continuity and queueing, beat timing,
+  hype ballistics, food chasing, tail solidity; writes move previews and per-move frames to
+  `build-msvc/motion-review`.
+- `DspChecks`: tempo lock within 1.5 BPM and beat phase at 90–174 BPM (44.1/48 kHz),
+  release on silence, no false lock on noise, band levels and the kick detector.
+- `EditorShots`: runs the real processor and editor offscreen on a synthetic groove,
+  saves each theme, feeding and the open panel to `build-msvc/editor-shots`, and
+  times a full 1024×1024 frame.
 
 ```
 Source/
   PluginProcessor.{h,cpp}   transparent effect + parameters + vibe state
   PluginEditor.{h,cpp}      500x500 resizable tank, 60 fps timer
-  DSP/AudioFeatures.*       allocation-free analysis (audio thread)
+  DSP/AudioFeatures.*       allocation-free analysis: envelope, 3 bands, kick (audio thread)
+  DSP/TempoTracker.*        onset-autocorrelation BPM + beat phase, no host needed
   DSP/VibeState.h           lock-free atomic state
-  UI/KoiFish.*              spine-driven pixel koi (offscreen-rendered)
+  UI/KoiFish.*              spine-driven pixel koi: move state machine, food chase
+  UI/TankScene.*            themed pixel tank, band-reactive scenery, tetras, party layer
   UI/DiscoBall.*            party ball
   UI/Bubbles.*              mouth bubble particles
   UI/SpeechBox.*            tiered cute speech
   UI/HypeMeter.*            segmented hype bar
-  UI/ConfigDrawer.*         collapsible settings
+  UI/ControlPanel.*         slide-up settings + move buttons
+  UI/PixelLookAndFeel.h     chunky pixel controls
+  UI/FoodShaker.*           draggable food canister + pellets
 scripts/
   build-windows.bat         standard release build (MSVC + Ninja)
   build-demo.bat            demo-mode build (synth-driven visuals)
