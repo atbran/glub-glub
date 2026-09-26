@@ -89,6 +89,10 @@ struct EditorShots
     {
         out = juce::File::getCurrentWorkingDirectory().getChildFile("build-msvc/editor-shots");
         out.createDirectory();
+        // Never touch the user's real pet: XP and wardrobe go to a scratch file.
+        auto scratch = out.getChildFile("progress.settings");
+        scratch.deleteFile();
+        GlubProgress::overrideStorageFile(scratch);
         proc.setPlayConfigDetails(2, 2, sr, 800);
         proc.prepareToPlay(sr, 800);
         editor.reset(static_cast<GlubGlubEditor*>(proc.createEditor()));

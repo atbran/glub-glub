@@ -65,25 +65,61 @@ namespace
         "...BBBB......BBBBBB.........."
     };
 
-    juce::Colour colourFor(char c)
+    // Body palettes: base / light / dark for white, red and fin, plus sumi spots.
+    struct SkinPalette { juce::uint32 w, wl, wd, r, rl, rd, f, fl, fd, spot; };
+    const SkinPalette kSkins[KoiFish::numSkins] = {
+        { 0xFFFDF6E3, 0xFFFFFEF9, 0xFFE3D2A8, 0xFFE8491D, 0xFFFF8148, 0xFFAE3410, 0xFFD9A441, 0xFFF4CD74, 0xFFA5762A, 0xFF33201A }, // koi
+        { 0xFFF7A03A, 0xFFFFC266, 0xFFD97E1F, 0xFFE8641D, 0xFFFF8F45, 0xFFB84A10, 0xFFF2B35A, 0xFFFFD28A, 0xFFC47F2A, 0xFFB84A10 }, // goldfish
+        { 0xFFB8CCE0, 0xFFDDE8F2, 0xFF8FA6BF, 0xFFF08A3C, 0xFFFFAE6B, 0xFFC0621F, 0xFFC7B8E8, 0xFFE6DCFA, 0xFF9A86C4, 0xFF1E2A4A }, // shubunkin
+        { 0xFF3A1F6B, 0xFF5B34A0, 0xFF26134A, 0xFF19F0D0, 0xFF8CFFF0, 0xFF0FA894, 0xFFFF4FD8, 0xFFFF9EEC, 0xFFB2239A, 0xFFFFE14D }, // neon
+        { 0xFFFFD84A, 0xFFFFF1A6, 0xFFD4A52A, 0xFFF0B429, 0xFFFFD970, 0xFFB8860B, 0xFFFFE27A, 0xFFFFF6C8, 0xFFC9982A, 0xFFB8860B }, // golden
+    };
+
+    // Accessories, stamped into the raster after the outline pass so they
+    // bend with the body. Rows are drawn bottom-aligned on the head.
+    const char* const kPartyHatArt[6] = {
+        "...W...",
+        "..OPO..",
+        "..OYO..",
+        ".OPPPO.",
+        ".OYYYO.",
+        "OPPPPPO",
+    };
+    const char* const kCrownArt[4] = {
+        "G..G..G",
+        "GH.G.HG",
+        "GHGGGGG",
+        "GRGBGRG",
+    };
+
+    juce::Colour colourFor(char c, int skin = 0)
     {
+        const auto& p = kSkins[juce::jlimit(0, KoiFish::numSkins - 1, skin)];
         switch (c)
         {
             case 'O': return colOutline;
-            case 'w': return colWBase;
-            case '1': return colWLight;
-            case '2': return colWDark;
-            case 'r': return colRBase;
-            case '3': return colRLight;
-            case '4': return colRDark;
-            case 'f': return colFBase;
-            case '5': return colFLight;
-            case '6': return colFDark;
+            case 'w': return juce::Colour(p.w);
+            case '1': return juce::Colour(p.wl);
+            case '2': return juce::Colour(p.wd);
+            case 'r': return juce::Colour(p.r);
+            case '3': return juce::Colour(p.rl);
+            case '4': return juce::Colour(p.rd);
+            case 'f': return juce::Colour(p.f);
+            case '5': return juce::Colour(p.fl);
+            case '6': return juce::Colour(p.fd);
+            case 's': return juce::Colour(p.spot);
+            case 'G': return juce::Colour(0xFFFFD84A);
+            case 'H': return juce::Colour(0xFFFFF1A6);
+            case 'D': return juce::Colour(0xFFB8860B);
+            case 'R': return juce::Colour(0xFFE8283C);
+            case 'B': return juce::Colour(0xFF2F7BFF);
+            case 'P': return juce::Colour(0xFFFF5FA2);
+            case 'Y': return juce::Colour(0xFFFFD84A);
+            case 'W': return juce::Colour(0xFFFFFFFF);
             case 'e': return colEye;
             case 'g': return colGlint;
             case 'b': return colBlush;
             case 'm': return colMouth;
-            case 's': return colSpot;
             case 'k': return colBarbel;
             default: break;
         }
@@ -192,15 +228,20 @@ void KoiFish::setVibe(float e, float b, float p, float bp, int inten, int bar, f
         lastDanceBar = effectiveBar;
         // Pegged hype (held a few seconds) unlocks the showstoppers, every bar.
         const bool maxedOut = !gentleMotion && maxHypeTime > 3.0f;
-        if (!chasing && !isMoveBusy() && moveCooldown <= 0.0f && (effectiveBar % 2 == 0 || maxedOut)
-            && (energy > 0.16f || feed > 0.5f))
+        const bool worming = wormMode && !gentleMotion;
+        if (!chasing && !petting && !isMoveBusy() && moveCooldown <= 0.0f && (effectiveBar % 2 == 0 || maxedOut || worming)
+            && (energy > (worming ? 0.10f : 0.16f) || feed > 0.5f))
         {
             const MoveType mellow[] = { MoveType::HeadBop, MoveType::Shuffle, MoveType::Shimmy, MoveType::FigureEight, MoveType::Moonwalk };
             const MoveType lively[] = { MoveType::Worm, MoveType::Twerk, MoveType::Roll, MoveType::Moonwalk, MoveType::Spin,
                                         MoveType::FigureEight, MoveType::Shimmy, MoveType::Loop, MoveType::HeadBop, MoveType::Shuffle };
             const MoveType intense[] = { MoveType::Loop, MoveType::TailWalk, MoveType::Roll, MoveType::Twerk, MoveType::Spin, MoveType::Worm };
             const bool big = !gentleMotion && (hype > 0.72f || feed > 0.5f);
-            if (maxedOut && breakdanceCooldown <= 0.0f && choreoRng.nextFloat() < 0.35f)
+            // Worm mode: about half of all automatic moves become the worm
+            // (roughly five times its usual share), and he dances every bar.
+            if (worming && choreoRng.nextFloat() < 0.5f)
+                triggerMove(MoveType::Worm);
+            else if (maxedOut && breakdanceCooldown <= 0.0f && choreoRng.nextFloat() < 0.35f)
                 triggerMove(MoveType::Breakdance);
             else if (maxedOut)
                 triggerMove(intense[danceIndex % 6]);
@@ -265,6 +306,26 @@ void KoiFish::setVibe(float e, float b, float p, float bp, int inten, int bar, f
     for (auto& heart : hearts)
         if (heart.age < 1.0f) { heart.age += dt / 1.4f; heart.y -= dt * 34.0f; }
 
+    // Petting: steady stroking fills the meter, it drains when you stop.
+    petMeter = juce::jlimit(0.0f, 1.0f, petMeter + petStroke * 0.009f - dt * 0.6f);
+    petStroke = 0.0f;
+    if (!mouseActive) petMeter = juce::jmax(0.0f, petMeter - dt * 1.5f);
+    const bool wasPetting = petting;
+    petting = petting ? petMeter > 0.15f : petMeter > 0.55f;
+    if (petting && !wasPetting) { petStarted = true; sleepy = false; calmTime = 0.0f; }
+    happyT += ((petting ? 1.0f : 0.0f) - happyT) * (1.0f - std::exp(-dt / 0.2f));
+    if (petting)
+    {
+        tailBurst = juce::jmax(tailBurst, 0.35f); // happy little wag
+        petHeartTimer -= dt;
+        if (petHeartTimer <= 0.0f)
+        {
+            petHeartTimer = 0.55f;
+            auto& heart = hearts[(size_t) (nextHeart++ % (int) hearts.size())];
+            heart = { mousePos.x + (float) ((nextHeart % 3) - 1) * 8.0f, mousePos.y - 14.0f, 0.0f };
+        }
+    }
+
     float desiredGaze = 0.0f;
     if (mouseActive && !sleepy && !isMoveBusy() && startleT <= 0.0f)
     {
@@ -304,6 +365,9 @@ void KoiFish::triggerMove(MoveType move)
 
 void KoiFish::setMouseTarget(juce::Point<float> pos, bool inWindow)
 {
+    // Distance stroked across his body; setVibe() turns it into happiness.
+    if (inWindow && mouseActive && isOverBody(pos))
+        petStroke += juce::jmin(60.0f, pos.getDistanceFrom(mousePos));
     mousePos = pos;
     mouseActive = inWindow;
 }
@@ -601,7 +665,15 @@ void KoiFish::buildGrid(std::vector<char>& grid)
         int ey = (int) std::round(p.y + n.second * (0.35f * p.r));
         // Keep the eye underneath the glasses throughout their flight.
         {
-            if (sleepy)
+            if (happyT > 0.5f && !sleepy)
+            {
+                // Content "^" eye while being petted.
+                set(ex - 1, ey + 1, 'e');
+                set(ex, ey, 'e');
+                set(ex + 1, ey, 'e');
+                set(ex + 2, ey + 1, 'e');
+            }
+            else if (sleepy)
             {
                 set(ex - 1, ey, 'e');
                 set(ex, ey, 'e');
@@ -655,7 +727,8 @@ void KoiFish::buildGrid(std::vector<char>& grid)
         int byy = (int) std::round(pb.y + pb.r * 0.55f);
         set(bxx, byy, 'b');
         set(bxx + 1, byy, 'b');
-        if (fullness > 0.45f) { set(bxx - 1, byy, 'b'); set(bxx, byy + 1, 'b'); }
+        if (fullness > 0.45f || happyT > 0.3f) { set(bxx - 1, byy, 'b'); set(bxx, byy + 1, 'b'); }
+        if (happyT > 0.6f) { set(bxx + 1, byy + 1, 'b'); set(bxx - 1, byy + 1, 'b'); }
 
         eyeGX = ex;
         eyeGY = ey;
@@ -675,6 +748,55 @@ void KoiFish::buildGrid(std::vector<char>& grid)
         }
     }
     grid.swap(outlined);
+
+    // Accessories go on after the outline so their own art controls the edges.
+    if (chain)
+    {
+        // A gold chain slung round the neck, with a medallion under the chin.
+        auto p = spineAt(0.74f);
+        auto n = normalAt(0.74f);
+        for (int k = -1; k <= 7; ++k)
+        {
+            const float t = (float) k / 6.0f;          // -0.17 .. 1.17 across the body
+            const int gx = (int) std::round(p.x - n.first * (t * p.r * 1.1f) + t * 1.2f);
+            const int gy = (int) std::round(p.y - n.second * (t * p.r * 1.1f));
+            if (get(gx, gy) != '.') set(gx, gy, (k & 1) ? 'D' : 'G');
+        }
+        auto bottom = spineAt(0.76f);
+        const int mx = (int) std::round(bottom.x + 1.0f), my = (int) std::round(bottom.y + bottom.r + 0.5f);
+        set(mx, my, 'G'); set(mx + 1, my, 'D');
+        set(mx, my + 1, 'H'); set(mx + 1, my + 1, 'G');
+    }
+    if (hat != 0)
+    {
+        auto p = spineAt(0.83f);
+        const int cxg = (int) std::round(p.x);
+        const int base = (int) std::round(p.y - p.r) + 1;
+        const char* const* art = hat == 1 ? kPartyHatArt : kCrownArt;
+        const int rows = hat == 1 ? 6 : 4;
+        for (int r = 0; r < rows; ++r)
+            for (int c = 0; c < 7; ++c)
+                if (art[r][c] != '.')
+                    set(cxg - 3 + c, base - rows + r, art[r][c]);
+    }
+}
+
+bool KoiFish::isOverBody(juce::Point<float> pos) const
+{
+    if (lastGrid.empty() || lastSpriteToScreen.isSingularity()) return false;
+    const auto local = pos.transformedBy(lastSpriteToScreen.inverted());
+    int gx = (int) std::floor(local.x / (float) lastPixel);
+    const int gy = (int) std::floor(local.y / (float) lastPixel);
+    if (!facingRight) gx = GRID_W - 1 - gx;
+    // A little slack so strokes along the outline still count.
+    for (int dy = -1; dy <= 1; ++dy)
+        for (int dx = -1; dx <= 1; ++dx)
+        {
+            const int x = gx + dx, y = gy + dy;
+            if (x >= 0 && x < GRID_W && y >= 0 && y < GRID_H && lastGrid[(size_t) (y * GRID_W + x)] != '.')
+                return true;
+        }
+    return false;
 }
 
 void KoiFish::paint(juce::Graphics& g)
@@ -963,6 +1085,9 @@ void KoiFish::paint(juce::Graphics& g)
         spriteImg = juce::Image(juce::Image::ARGB, spriteW, spriteH, true, juce::SoftwareImageType());
     spriteImg.clear(spriteImg.getBounds());
     spriteOrigin = { ox, oy };
+    lastGrid = grid;
+    lastPixel = pixel;
+    lastSpriteToScreen = juce::AffineTransform::translation(ox, oy).followedBy(fishTransform);
 
     {
         juce::Graphics ig(spriteImg);
@@ -973,7 +1098,7 @@ void KoiFish::paint(juce::Graphics& g)
                 char c = grid[(size_t) gy * GRID_W + gx];
                 if (c == '.') continue;
                 int sx = facingRight ? gx : (GRID_W - 1 - gx);
-                ig.setColour(colourFor(c));
+                ig.setColour(colourFor(c, skin));
                 ig.fillRect(sx * pixel, gy * pixel, pixel, pixel);
             }
         }

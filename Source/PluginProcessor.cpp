@@ -26,6 +26,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout GlubGlubProcessor::createPar
     p.push_back(std::make_unique<juce::AudioParameterChoice>(
         "theme", "Tank Theme", juce::StringArray { "Lagoon", "Midnight", "Sunset" }, 0));
     p.push_back(std::make_unique<juce::AudioParameterBool>("tankMates", "Tank Mates", true));
+    p.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "hypeSensitivity", "Hype Sensitivity", juce::NormalisableRange<float>(0.5f, 2.0f, 0.01f, 0.63f), 1.0f));
+    p.push_back(std::make_unique<juce::AudioParameterBool>("wormMode", "Worm Mode", false));
     return { p.begin(), p.end() };
 }
 

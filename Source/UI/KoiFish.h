@@ -26,6 +26,19 @@ public:
     void chomp();
     bool isChasingFood() const { return foodTarget.has_value(); }
     float getFullness() const { return fullness; }
+
+    // Cosmetics unlocked through XP (see GlubProgress).
+    enum class Skin { Koi = 0, Goldfish, Shubunkin, Neon, Golden };
+    enum class Hat { None = 0, Party, Crown };
+    static constexpr int numSkins = 5;
+    void setSkin(int s) { skin = juce::jlimit(0, numSkins - 1, s); }
+    void setHat(int h) { hat = juce::jlimit(0, 2, h); }
+    void setChain(bool on) { chain = on; }
+    void setWormMode(bool on) { wormMode = on; }
+
+    // Petting: slow strokes over his body make him happy.
+    bool isBeingPetted() const { return petting; }
+    bool consumePetStarted() { const bool s = petStarted; petStarted = false; return s; }
     bool consumeBreakdanceTriggered()
     {
         bool triggered = breakdanceJustTriggered;
@@ -95,6 +108,18 @@ private:
     juce::Point<float> mouthPos { 0, 0 };
     juce::Image spriteImg;
     juce::Point<float> spriteOrigin { 0, 0 };
+
+    int skin = 0, hat = 0;
+    bool chain = false, wormMode = false;
+
+    // Petting state: the last raster and its screen transform let the cursor
+    // be tested against real body pixels rather than a bounding box.
+    std::vector<char> lastGrid;
+    juce::AffineTransform lastSpriteToScreen;
+    int lastPixel = 1;
+    float petStroke = 0.0f, petMeter = 0.0f, happyT = 0.0f, petHeartTimer = 0.0f;
+    bool petting = false, petStarted = false;
+    bool isOverBody(juce::Point<float> pos) const;
 
     void buildGrid(std::vector<char>& grid);
 };

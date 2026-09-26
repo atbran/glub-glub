@@ -20,6 +20,18 @@ void Bubbles::update(float energy, juce::Point<float> mouth)
     }
     pool.erase(std::remove_if(pool.begin(), pool.end(),
         [](const P& p) { return p.alpha <= 0 || p.y < -10; }), pool.end());
+
+    const float dt = 1.0f / 60.0f;
+    for (auto& c : confettiPool)
+    {
+        c.vy += 260.0f * dt;               // gravity, softened by water drag
+        c.vx *= 0.97f; c.vy *= 0.97f;
+        c.x += c.vx * dt; c.y += c.vy * dt;
+        c.spin += 9.0f * dt;
+        c.life -= dt / 3.0f;
+    }
+    confettiPool.erase(std::remove_if(confettiPool.begin(), confettiPool.end(),
+        [this](const Confetto& c) { return c.life <= 0.0f || c.y > (float) getHeight() + 10.0f; }), confettiPool.end());
     repaint();
 }
 
@@ -43,8 +55,27 @@ void Bubbles::vortex(juce::Point<float> center)
     }
 }
 
+void Bubbles::confetti(juce::Point<float> from)
+{
+    const juce::uint32 colours[] = { 0xFFFF5FA2, 0xFFFFD84A, 0xFF2FD0FF, 0xFF39FF14, 0xFFFF8148, 0xFFFFFFFF };
+    for (int i = 0; i < 70; ++i)
+    {
+        const float angle = -1.5708f + (rng.nextFloat() - 0.5f) * 2.6f;
+        const float speed = 160.0f + rng.nextFloat() * 260.0f;
+        confettiPool.push_back({ from.x, from.y, std::cos(angle) * speed, std::sin(angle) * speed,
+                                 rng.nextFloat() * 6.28f, 1.0f, juce::Colour(colours[i % 6]) });
+    }
+}
+
 void Bubbles::paint(juce::Graphics& g)
 {
+    for (const auto& c : confettiPool)
+    {
+        // Pixel confetti: a square that flickers thin as it tumbles.
+        const float w = 3.0f + 3.0f * std::abs(std::cos(c.spin));
+        g.setColour(c.colour.withAlpha(juce::jlimit(0.0f, 1.0f, c.life * 1.5f)));
+        g.fillRect(std::round(c.x - w * 0.5f), std::round(c.y - 3.0f), w, 6.0f);
+    }
     g.setColour(juce::Colour(0x99BEE9E8));
     for (auto& p : pool)
     {

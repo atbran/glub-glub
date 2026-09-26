@@ -1,7 +1,7 @@
 #include "PluginEditor.h"
 
 GlubGlubEditor::GlubGlubEditor(GlubGlubProcessor& p)
-    : AudioProcessorEditor(p), proc(p), panel(p.apvts)
+    : AudioProcessorEditor(p), proc(p), panel(p.apvts, *progress)
 {
     setLookAndFeel(&lnf);
     setSize(500, 500);
@@ -22,6 +22,8 @@ GlubGlubEditor::GlubGlubEditor(GlubGlubProcessor& p)
         c->setInterceptsMouseClicks(false, false);
 
     panel.onMoveTriggered = [this](KoiFish::MoveType m) { fish.triggerMove(m); };
+    seenLevelUps = progress->getLevelUpSerial();
+    lastWormMode = p.apvts.getRawParameterValue("wormMode")->load() > 0.5f;
     tankBtn.setTooltip("Tank settings and dance moves");
     tankBtn.onClick = [this] { panelWanted = !panelWanted; };
 
@@ -49,6 +51,24 @@ void GlubGlubEditor::paint(juce::Graphics& g)
     g.setFont(PixelLookAndFeel::pixelFont(11.0f));
     g.setColour(juce::Colour(PixelLookAndFeel::cream).withAlpha(0.7f));
     g.drawText("glub-glub " JucePlugin_VersionString, bar.reduced(10, 0), juce::Justification::centredRight);
+
+    // Level badge: "Lv 3" and a chunky XP bar in the middle of the stand.
+    if (!levelBadgeArea.isEmpty())
+    {
+        auto badge = levelBadgeArea;
+        g.setFont(PixelLookAndFeel::pixelFont(12.0f));
+        g.setColour(juce::Colour(0xFFFFC93C));
+        g.drawText("Lv " + juce::String(progress->getLevel()), badge.removeFromLeft(44), juce::Justification::centredLeft);
+        auto xpBar = badge.withSizeKeepingCentre(badge.getWidth(), 10);
+        g.setColour(juce::Colour(PixelLookAndFeel::ink));
+        g.fillRect(xpBar);
+        auto inner = xpBar.reduced(2);
+        g.setColour(juce::Colour(0xFF2A1A10));
+        g.fillRect(inner);
+        const float frac = juce::jlimit(0.0f, 1.0f, progress->getXpIntoLevel() / juce::jmax(1.0f, progress->getXpForThisLevel()));
+        g.setColour(juce::Colour(0xFFFFC93C));
+        g.fillRect(inner.withWidth((int) (inner.getWidth() * frac) / 3 * 3));
+    }
 }
 
 void GlubGlubEditor::resized()
@@ -56,6 +76,7 @@ void GlubGlubEditor::resized()
     auto b = getLocalBounds();
     auto bar = b.removeFromBottom(barHeight);
     tankBtn.setBounds(bar.removeFromLeft(78).reduced(4, 3));
+    levelBadgeArea = bar.withSizeKeepingCentre(juce::jmin(170, bar.getWidth() - 200), bar.getHeight()).reduced(0, 4);
 
     scene.setBounds(b);
     auto swim = b.withTrimmedBottom(speechHeight);
@@ -125,6 +146,7 @@ void GlubGlubEditor::timerCallback()
     if (shaker.eatPelletNear(mouth, biteRadius))
     {
         fish.chomp();
+        progress->addXp(3.0f);
         if (bubblesOn) bubbles.burst(mouth);
         ++bitesSinceSpeech;
         static const char* nomLines[] = { "nom.", "NOM NOM NOM", "5 stars. would glub again.", "flakes?! for ME?",
@@ -135,9 +157,23 @@ void GlubGlubEditor::timerCallback()
             bitesSinceSpeech = 0;
     }
 
-    const float hypeLevel = hypeEnvelope.update(vibe.loudness.load(), pulse, feed, dt);
+    const float hypeLevel = hypeEnvelope.update(vibe.loudness.load(), pulse, feed, dt, param("hypeSensitivity"));
     fish.setGlassesOn(param("glassesOn") > 0.5f);
     fish.setGentleMotion(param("gentleMotion") > 0.5f);
+    fish.setSkin(progress->getSkin());
+    fish.setHat(progress->getHat());
+    fish.setChain(progress->getChain());
+
+    // Worm mode: flipping it on gets an instant worm and an announcement.
+    const bool wormMode = param("wormMode") > 0.5f;
+    fish.setWormMode(wormMode);
+    if (wormMode && !lastWormMode)
+    {
+        fish.triggerMove(KoiFish::MoveType::Worm);
+        speech.shout("WORM MODE ACTIVATED. glub.", now);
+        lastSpokeAt = now;
+    }
+    lastWormMode = wormMode;
     fish.setVibe(energy, bright, pulse, phase, inten, bar, feed, hypeLevel, dt, bpm);
 
     if (fish.consumeBreakdanceTriggered())
@@ -147,6 +183,7 @@ void GlubGlubEditor::timerCallback()
         speech.shout(bdShouts[rng.nextInt(6)], now);
         lastSpokeAt = now;
         bubbles.vortex(fish.getFloorContactPos());
+        progress->addXp(20.0f);
     }
 
     // Glub brags when he finds the beat on his own.
@@ -191,6 +228,33 @@ void GlubGlubEditor::timerCallback()
     frame.tankMates = param("tankMates") > 0.5f;
     scene.setTheme(static_cast<TankScene::Theme>(juce::jlimit(0, 2, (int) param("theme"))), param("hue"));
     scene.update(frame, now, dt);
+
+    // ---- XP: dancing to real music (faster when hyped), petting, big moves ----
+    if (energy > 0.15f)
+        progress->addXp(dt * (0.6f + 1.4f * hypeLevel));
+    if (fish.isBeingPetted())
+        progress->addXp(dt);
+    if (fish.consumePetStarted())
+    {
+        static const char* petLines[] = { "hehe... that tickles.", "scritches accepted.", "I am a good fish. confirmed.",
+                                          "don't stop. ever.", "purr? glub. same thing.", "10/10 petting technique." };
+        trySpeak(petLines[rng.nextInt(6)], now, 8.0);
+    }
+    if (progress->getLevelUpSerial() != seenLevelUps)
+    {
+        seenLevelUps = progress->getLevelUpSerial();
+        const int lvl = progress->getLevel();
+        const auto unlocked = GlubProgress::unlockedAt(lvl);
+        speech.shout("LEVEL UP! level " + juce::String(lvl) + (unlocked.isNotEmpty() ? " - unlocked " + unlocked + "!" : "!"), now);
+        lastSpokeAt = now;
+        bubbles.confetti({ fish.getWidth() * 0.5f, fish.getHeight() * 0.45f });
+        repaint(levelBadgeArea);
+    }
+    if ((int) progress->getXp() != shownXp)
+    {
+        shownXp = (int) progress->getXp();
+        repaint(levelBadgeArea);
+    }
 
     bubbles.setEnabled(bubblesOn);
     if (bubblesOn && scene.consumeChestBurp())

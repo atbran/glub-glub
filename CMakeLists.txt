@@ -39,6 +39,7 @@ target_sources(GlubGlub PRIVATE
   Source/UI/SpeechBox.cpp
   Source/UI/ControlPanel.cpp
   Source/UI/TankScene.cpp
+  Source/UI/GlubProgress.cpp
   Source/UI/HypeMeter.cpp
   Source/UI/DiscoBall.cpp
   Source/UI/FoodShaker.cpp
@@ -68,7 +69,7 @@ option(GLUB_BUILD_MOTION_CHECKS "Build deterministic offscreen koi checks" OFF)
 if(GLUB_BUILD_MOTION_CHECKS)
   enable_testing()
   juce_add_console_app(KoiMotionChecks PRODUCT_NAME "KoiMotionChecks")
-  target_sources(KoiMotionChecks PRIVATE tests/KoiMotionChecks.cpp Source/UI/KoiFish.cpp Source/UI/DiscoBall.cpp)
+  target_sources(KoiMotionChecks PRIVATE tests/KoiMotionChecks.cpp Source/UI/KoiFish.cpp Source/UI/DiscoBall.cpp Source/UI/GlubProgress.cpp)
   target_compile_definitions(KoiMotionChecks PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
   target_link_libraries(KoiMotionChecks PRIVATE juce::juce_gui_basics)
   add_test(NAME koi-motion COMMAND KoiMotionChecks)

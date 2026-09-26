@@ -7,10 +7,11 @@
 class HypeEnvelope
 {
 public:
-    float update(float loudness, float pulse, float feed, float dt)
+    // sensitivity scales how loud the music has to be (0.5x - 2x, 1 = default).
+    float update(float loudness, float pulse, float feed, float dt, float sensitivity = 1.0f)
     {
         dt = std::clamp(dt, 0.0f, 0.05f);
-        loudness = std::clamp(loudness, 0.0f, 1.0f);
+        loudness = std::clamp(loudness * std::clamp(sensitivity, 0.25f, 4.0f), 0.0f, 1.0f);
         const float level = std::clamp((loudness - 0.18f) / 0.68f, 0.0f, 1.0f);
         float target = std::pow(level, 1.6f);
         target = std::min(1.0f, target + 0.06f * pulse * level);

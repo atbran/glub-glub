@@ -1,6 +1,7 @@
 #include "../Source/UI/KoiFish.h"
 #include "../Source/UI/HypeEnvelope.h"
 #include "../Source/UI/DiscoBall.h"
+#include "../Source/UI/GlubProgress.h"
 #include <iostream>
 
 struct KoiMotionChecks
@@ -277,6 +278,122 @@ struct KoiMotionChecks
             for (int i = 0; i < 30; ++i) brief.update(0.9f, i / 60.0);
             for (int i = 30; i < 120; ++i) brief.update(0.3f, i / 60.0);
             check(!brief.isShowing(), "Half-second hype spike does not summon the disco ball");
+        }
+
+        // Hype sensitivity: the same moderate mix is calm at 0.5x and a party at 2x.
+        {
+            HypeEnvelope low, normal, high;
+            float lowLevel = 0, normalLevel = 0, highLevel = 0;
+            for (int i = 0; i < 600; ++i)
+            {
+                lowLevel = low.update(0.5f, 0.2f, 0, 1.0f / 60, 0.5f);
+                normalLevel = normal.update(0.5f, 0.2f, 0, 1.0f / 60, 1.0f);
+                highLevel = high.update(0.5f, 0.2f, 0, 1.0f / 60, 2.0f);
+            }
+            std::cout << "Hype at 0.5x / 1x / 2x: " << lowLevel << " / " << normalLevel << " / " << highLevel << '\n';
+            check(lowLevel < 0.05f && normalLevel < 0.5f && highLevel > 0.9f, "Hype sensitivity spans calm to maxed on the same mix");
+        }
+
+        // Worm mode: the worm shows up several times more often.
+        {
+            auto countWorms = [](bool wormMode)
+            {
+                KoiFish dancer;
+                dancer.setWormMode(wormMode);
+                int worms = 0;
+                auto last = KoiFish::MoveType::None;
+                for (int i = 0; i < 60 * 180; ++i)
+                {
+                    const float beats = i * 128.0f / 3600.0f;
+                    dancer.setVibe(0.6f, 0.5f, 0.3f, std::fmod(beats, 1.0f), 1, (int) beats / 4, 0, 0.8f, 1.0f / 60, 128);
+                    const auto now = dancer.getActiveMove();
+                    if (now == KoiFish::MoveType::Worm && last != KoiFish::MoveType::Worm) ++worms;
+                    last = now;
+                }
+                return worms;
+            };
+            const int normalWorms = countWorms(false), wormModeWorms = countWorms(true);
+            std::cout << "Worms in 3 minutes: normal " << normalWorms << ", worm mode " << wormModeWorms << '\n';
+            check(wormModeWorms >= 4 * juce::jmax(1, normalWorms), "Worm mode makes the worm about five times as common");
+        }
+
+        // Petting: slow strokes across his body make him happy; stroking water does not.
+        {
+            KoiFish pet;
+            pet.setSize(500, 388);
+            pet.paint(graphics);
+            const juce::Point<float> centre(pet.fishCx, pet.fishCy);
+            for (int i = 0; i < 150; ++i)
+            {
+                const float x = centre.x + 40.0f * std::sin(i * 0.08f);
+                pet.setMouseTarget({ x, centre.y - 5.0f }, true);
+                pet.setVibe(0, 0, 0, -1, 0, 1, 0);
+                pet.paint(graphics);
+            }
+            check(pet.isBeingPetted() && pet.consumePetStarted(), "Stroking his body pets him");
+            check(pet.happyT > 0.8f, "Petting brings out the happy face");
+            for (int i = 0; i < 150; ++i) { pet.setMouseTarget({ 30.0f, 30.0f + i % 2 }, true); pet.setVibe(0, 0, 0, -1, 0, 1, 0); pet.paint(graphics); }
+            check(!pet.isBeingPetted(), "Petting fades when the hand leaves");
+            KoiFish water;
+            water.setSize(500, 388);
+            water.paint(graphics);
+            for (int i = 0; i < 150; ++i)
+            {
+                water.setMouseTarget({ 40.0f + 30.0f * std::sin(i * 0.08f), 40.0f }, true);
+                water.setVibe(0, 0, 0, -1, 0, 1, 0);
+                water.paint(graphics);
+            }
+            check(!water.isBeingPetted(), "Stroking empty water does nothing");
+        }
+
+        // XP and unlocks persist in their own file and gate the wardrobe.
+        {
+            auto file = juce::File::getSpecialLocation(juce::File::tempDirectory).getChildFile("glub-progress-test.settings");
+            file.deleteFile();
+            GlubProgress::overrideStorageFile(file);
+            {
+                GlubProgress progress;
+                check(progress.getLevel() == 1, "Fresh pet starts at level 1");
+                progress.setSkin(1);
+                check(progress.getSkin() == 0, "Locked skins cannot be worn");
+                progress.addXp(GlubProgress::xpToReach(3) + 1.0f);
+                check(progress.getLevel() == 3 && progress.getLevelUpSerial() == 2, "XP levels him up");
+                progress.setSkin(1);
+                progress.setHat(1);
+                progress.setHat(2);
+                check(progress.getSkin() == 1 && progress.getHat() == 1, "Unlocked items equip, locked ones do not");
+            }
+            GlubProgress reloaded;
+            check(reloaded.getLevel() == 3 && reloaded.getSkin() == 1 && reloaded.getHat() == 1, "Level and wardrobe survive a restart");
+            std::cout << "Minutes of max-hype dancing to level 5 / 10: " << GlubProgress::xpToReach(5) / 2.0f / 60.0f
+                      << " / " << GlubProgress::xpToReach(10) / 2.0f / 60.0f << '\n';
+            file.deleteFile();
+        }
+
+        // Every skin and accessory renders, and the hat sits on top of his head.
+        {
+            KoiFish model;
+            model.setSize(500, 388);
+            model.setHat(1);
+            model.setChain(true);
+            std::vector<char> cells;
+            model.buildGrid(cells);
+            int hatTop = KoiFish::GRID_H, headTop = KoiFish::GRID_H, gold = 0;
+            for (int y = 0; y < KoiFish::GRID_H; ++y)
+                for (int x = 0; x < KoiFish::GRID_W; ++x)
+                {
+                    const char c = cells[(size_t) (y * KoiFish::GRID_W + x)];
+                    if (c == 'P' || c == 'W') hatTop = juce::jmin(hatTop, y);
+                    if (c == 'e') headTop = juce::jmin(headTop, y);
+                    if (c == 'G' || c == 'D') ++gold;
+                }
+            check(hatTop < headTop - 3 && gold >= 5, "Party hat perches on his head and the chain shows");
+            for (int s = 0; s < KoiFish::numSkins; ++s)
+            {
+                model.setSkin(s);
+                model.setHat(s % 3);
+                model.paint(graphics);
+            }
         }
 
         const auto output = juce::File::getCurrentWorkingDirectory().getChildFile("build-msvc/motion-review");

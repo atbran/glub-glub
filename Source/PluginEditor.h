@@ -12,6 +12,7 @@
 #include "UI/HypeEnvelope.h"
 #include "UI/TankScene.h"
 #include "UI/PixelLookAndFeel.h"
+#include "UI/GlubProgress.h"
 
 class GlubGlubEditor : public juce::AudioProcessorEditor, public juce::Timer
 {
@@ -36,6 +37,7 @@ private:
     bool trySpeak(const juce::String& line, double now, double cooldown = 14.0);
 
     GlubGlubProcessor& proc;
+    juce::SharedResourcePointer<GlubProgress> progress; // one pet shared by every instance
     PixelLookAndFeel lnf;
     juce::TooltipWindow tooltips { this, 700 };
     TankScene scene;
@@ -60,6 +62,9 @@ private:
     bool panelWanted = false;
     int lastTempoSource = 0;
     int bitesSinceSpeech = 0;
+    int seenLevelUps = 0, shownXp = -1;
+    bool lastWormMode = false;
+    juce::Rectangle<int> levelBadgeArea;
     HypeEnvelope hypeEnvelope;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GlubGlubEditor)
