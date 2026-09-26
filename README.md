@@ -13,6 +13,8 @@ and throws a full disco party when the music gets wild. Run the standalone
 
 ## What's new in 2.0
 
+Full release notes: [CHANGELOG.md](CHANGELOG.md).
+
 ![Lagoon, Midnight, Sunset and the control panel](docs/v2-tanks.png)
 
 - **He hears the beat himself.** A tempo tracker (onset autocorrelation + comb-filter

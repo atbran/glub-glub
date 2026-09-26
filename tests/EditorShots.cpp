@@ -29,7 +29,7 @@ struct EditorShots
     }
 
     // Advance audio and UI together in real time (the editor reads the wall clock).
-    double run(double seconds, double bpm, float gain)
+    double run(double seconds, double bpm, float gain, std::function<void(int, const juce::Image&)> onFrame = {})
     {
         juce::AudioBuffer<float> buffer(2, 800);
         juce::MidiBuffer midi;
@@ -46,7 +46,8 @@ struct EditorShots
             proc.processBlock(buffer, midi);
             const double start = juce::Time::getMillisecondCounterHiRes();
             editor->timerCallback();
-            editor->createComponentSnapshot(editor->getLocalBounds()); // paint updates the koi's mouth
+            auto frame = editor->createComponentSnapshot(editor->getLocalBounds()); // paint updates the koi's mouth
+            if (onFrame) onFrame(f, frame);
             paintMs += juce::Time::getMillisecondCounterHiRes() - start;
             juce::Thread::sleep(juce::jmax(1, 16 - (int) (juce::Time::getMillisecondCounterHiRes() - start)));
         }
@@ -111,7 +112,24 @@ struct EditorShots
                   << "  fullness " << editor->fish.getFullness() << std::endl;
         shot("sunset-fed");
 
+        // Hero: a loud groove until hype pegs and the disco ball drops in,
+        // then GIF frames at 15 fps.
         setParam("theme", 0);
+        setParam("glassesOn", 1);
+        run(12.0, 128.0, 1.4f);
+        shot("hero");
+        auto gifDir = out.getChildFile("gif");
+        gifDir.deleteRecursively();
+        gifDir.createDirectory();
+        run(8.0, 128.0, 1.4f, [&](int f, const juce::Image& image)
+        {
+            if (f % 4 != 0) return;
+            juce::FileOutputStream frameStream(gifDir.getChildFile(juce::String(f / 4).paddedLeft('0', 3) + ".png"));
+            juce::PNGImageFormat().writeImageToStream(image, frameStream);
+        });
+        std::cout << "disco showing: " << editor->disco.isShowing() << std::endl;
+        setParam("glassesOn", 0);
+
         editor->panelWanted = true;
         run(1.0, 124.0, 0.5f);
         shot("panel-open");
