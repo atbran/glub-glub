@@ -13,6 +13,24 @@ namespace
         return t * t * (3.0f - 2.0f * t);
     }
 
+    float smoother(float t)
+    {
+        t = juce::jlimit(0.0f, 1.0f, t);
+        return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
+    }
+
+    // Beat-locked accent: 1 on the beat, easing to 0 by the off-beat. Smooth everywhere.
+    float onBeat(float beatPhase, float sharpness = 3.0f)
+    {
+        return std::pow(0.5f + 0.5f * std::cos(2.0f * kPi * beatPhase), sharpness);
+    }
+
+    // Keeps a scale's sign but never lets the sprite collapse to an invisible line.
+    float visibleScale(float s, float minimum = 0.10f)
+    {
+        return s >= 0.0f ? juce::jmax(s, minimum) : juce::jmin(s, -minimum);
+    }
+
     float breakdancePlant(float progress)
     {
         return danceEase(0.0f, 0.22f, progress) * (1.0f - danceEase(0.78f, 1.0f, progress));
@@ -105,7 +123,9 @@ juce::Point<float> KoiFish::figureEightPath(float progress, float width, float h
     const float arcs = juce::jlimit(0.0f, 1.0f, progress) * 4.0f;
     const float whole = std::floor(arcs);
     const float fraction = arcs - whole;
-    const float eased = fraction * fraction * (3.0f - 2.0f * fraction);
+    // Half-eased: he still hits a landmark every two beats, but keeps gliding
+    // through it instead of stopping dead.
+    const float eased = 0.5f * fraction + 0.5f * fraction * fraction * (3.0f - 2.0f * fraction);
     const float angle = (whole + eased) * 0.5f * kPi;
     return { std::sin(angle) * juce::jmin(110.0f, width * 0.22f),
              std::sin(2.0f * angle) * juce::jmin(66.0f, height * 0.16f) };
@@ -333,11 +353,44 @@ void KoiFish::buildGrid(std::vector<char>& grid)
         float wy = 15.0f + ampU * std::sin(phase - u * 4.4f);
         if (doing(MoveType::Worm))
             wy += std::sin(wormPhase - u * 5.2f) * wormEnv * 6.5f;
-        const float envelope = std::pow(std::sin(kPi * moveT), 2.0f) * (gentleMotion ? 0.35f : 1.0f);
-        if (activeMove == MoveType::Twerk)
-            wy += (-2.0f + 5.5f * std::cos(danceBeat * 2.0f * kPi)) * std::pow(1.0f - u, 1.6f) * envelope;
-        if (activeMove == MoveType::Shimmy)
-            wy += std::sin(danceBeat * 4.0f * kPi - u * 4.0f) * 2.5f * (1.0f - u) * envelope;
+        // Every move bends the pixel body itself, like the worm: the spine
+        // carries the gesture and the rigid transform in paint() only frames it.
+        const float gentleK = gentleMotion ? 0.35f : 1.0f;
+        const float envelope = std::pow(std::sin(kPi * moveT), 2.0f) * gentleK;
+        const float curlShape = 4.0f * (u - 0.5f) * (u - 0.5f) - 0.33f; // ends bend, middle holds
+        switch (activeMove)
+        {
+            case MoveType::Twerk:
+                wy += (-2.0f + 5.5f * (2.0f * onBeat(danceBeat, 1.5f) - 1.0f)) * std::pow(1.0f - u, 1.6f) * envelope;
+                break;
+            case MoveType::Shimmy:
+                // See-saw shake twice a beat: head and tail opposite, middle steady.
+                wy += envelope * (5.6f * std::sin(4.0f * kPi * danceBeat) * std::cos(kPi * u)
+                                  + 1.2f * std::sin(4.0f * kPi * danceBeat - u * 6.0f));
+                break;
+            case MoveType::HeadBop:
+            {
+                const float nod = onBeat(danceBeat) * envelope;
+                wy += 7.0f * nod * std::pow(u, 2.2f) - 3.0f * nod * std::pow(1.0f - u, 2.0f);
+                break;
+            }
+            case MoveType::Spin:
+                wy += 5.5f * envelope * curlShape;
+                break;
+            case MoveType::Flip:
+                wy += 5.0f * std::sin(kPi * moveT) * gentleK * curlShape;
+                break;
+            case MoveType::Roll:
+                wy += 3.4f * envelope * std::sin(moveT * 8.0f * kPi - u * 5.2f);
+                break;
+            case MoveType::Shuffle:
+                wy += 2.0f * envelope * std::sin(moveT * 8.0f * kPi - u * 4.5f);
+                break;
+            case MoveType::FigureEight:
+                wy += 2.4f * envelope * std::sin(moveT * 16.0f * kPi - u * 5.0f);
+                break;
+            default: break;
+        }
 
         float bdThrust = 0.0f;
         if (doing(MoveType::Breakdance))
@@ -607,8 +660,9 @@ void KoiFish::paint(juce::Graphics& g)
     std::vector<char> grid;
     buildGrid(grid);
 
-    float flipScale = doing(MoveType::Flip) ? std::cos(kPi * moveT) : 1.0f;
-    float aScale = std::abs(flipScale);
+    const float flipEase = moveT * moveT * (3.0f - 2.0f * moveT);
+    float flipScale = doing(MoveType::Flip) ? std::cos(kPi * flipEase) : 1.0f;
+    float aScale = juce::jmax(0.10f, std::abs(flipScale)); // never an invisible sliver mid-turn
     const float beatWeight = juce::jlimit(0.0f, 1.0f, energy * 1.5f + pulse * 0.35f);
     const float lift = 0.5f - 0.5f * std::cos(2.0f * kPi * danceBeat);
     const float impact = std::pow(1.0f - lift, 3.0f) * beatWeight;
@@ -617,7 +671,7 @@ void KoiFish::paint(juce::Graphics& g)
 
     float hopScale = beatPhase >= 0.0f ? 0.25f : 1.0f;
     float hop = -(7.0f + 12.0f * energy) * pulse * pulse * hopScale
-              - (doing(MoveType::Flip) ? 10.0f * std::sin(kPi * moveT) : 0.0f);
+              - (doing(MoveType::Flip) ? 14.0f * std::sin(kPi * moveT) : 0.0f);
 
     float bob = 0.0f;
     if (beatPhase >= 0.0f || energy > 0.12f)
@@ -642,11 +696,17 @@ void KoiFish::paint(juce::Graphics& g)
     fishCy = cy;
 
     float spinA = gazeAngle;
+    const float travel = juce::jmin(1.0f, h / 350.0f);
+    const float direction = facingRight ? 1.0f : -1.0f;
+    const float env = std::pow(std::sin(kPi * moveT), 2.0f);
+
+    // Spin: curl into a C (spine), tuck, pirouette once, uncurl.
     if (doing(MoveType::Spin))
     {
-        float p = juce::jlimit(0.0f, 1.0f, moveT);
-        float eased = p < 0.5f ? 4.0f * p * p * p : 1.0f - std::pow(-2.0f * p + 2.0f, 3.0f) * 0.5f;
-        spinA += eased * 2.0f * kPi;
+        spinA += direction * 2.0f * kPi * smoother((moveT - 0.18f) / 0.64f);
+        squashX *= 1.0f - 0.10f * env;
+        squashY *= 1.0f - 0.10f * env;
+        cy -= 14.0f * env * travel;
     }
 
     // Dance Move 1: The Worm (Breakdance body ripple)
@@ -659,18 +719,17 @@ void KoiFish::paint(juce::Graphics& g)
     }
 
     // Dance Move 2: The Barrel Roll (3D corkscrew loop)
+    // Barrel roll: a real roll about the long axis. The sprite's height runs
+    // through zero to belly-up and back while he corkscrews up and over.
     if (doing(MoveType::Roll))
     {
-        float p = juce::jlimit(0.0f, 1.0f, moveT);
-        float eased = p < 0.5f ? 4.0f * p * p * p : 1.0f - std::pow(-2.0f * p + 2.0f, 3.0f) * 0.5f;
-        float theta = eased * 2.0f * kPi;
-        float loopR = juce::jmin(28.0f, h * 0.065f);
-        float dir = facingRight ? 1.0f : -1.0f;
-        cx += std::sin(theta) * loopR * dir;
-        cy += -(1.0f - std::cos(theta)) * loopR;
-        spinA += dir * theta;
-        squashY *= (0.88f + 0.12f * std::cos(theta));
-        squashX *= (1.0f + 0.08f * std::sin(theta));
+        // Quick half-roll to belly-up, two beats of upside-down swimming, roll home.
+        const float theta = kPi * (smoother((moveT - 0.10f) / 0.20f) + smoother((moveT - 0.70f) / 0.20f));
+        squashY *= visibleScale(std::cos(theta), 0.08f);
+        squashX *= 1.0f + 0.07f * std::abs(std::sin(theta));
+        cx += direction * std::sin(theta) * 20.0f * travel;
+        cy += (-30.0f * env + 10.0f * std::sin(theta)) * travel;
+        spinA += direction * 0.22f * std::sin(theta);
     }
 
     // Dance Move: Breakdance (Headspin to Freeze combo)
@@ -688,34 +747,58 @@ void KoiFish::paint(juce::Graphics& g)
         // Once upright, local X is the fish's length. Compress its width (Y)
         // gently to suggest a headspin without repeatedly telescoping the body.
         squashX += (1.0f - squashX) * plant;
-        squashY += (1.0f - 0.20f * spin * std::pow(std::sin(angle), 2.0f) - squashY) * plant;
+        // Upright, local Y is his width: cycling it through zero reads as a
+        // spin about the vertical axis. Four turns during the spin window.
+        const float headspin = visibleScale(1.0f + (std::cos(2.0f * angle) - 1.0f) * spin, 0.12f);
+        squashY += (headspin - squashY) * plant;
     }
 
-    const float env = std::pow(std::sin(kPi * moveT), 2.0f);
     const float beat = danceBeat * 2.0f * kPi;
-    const float direction = facingRight ? 1.0f : -1.0f;
-    const float travel = juce::jmin(1.0f, h / 350.0f);
     switch (activeMove)
     {
         case MoveType::Shuffle:
-            cx += std::sin(beat) * 26.0f * env * travel;
-            spinA += std::sin(beat) * 0.16f * env;
+        {
+            // Beat-stepped slides: centre, right, left, right, centre. Each step
+            // glides in the first half of the beat, hops, and leans into travel.
+            static constexpr float stops[5] = { 0.0f, 1.0f, -1.0f, 1.0f, 0.0f };
+            const float beats = juce::jlimit(0.0f, 3.999f, moveT * 4.0f);
+            const int k = (int) beats;
+            const float f = juce::jmin(1.0f, (beats - (float) k) / 0.55f);
+            const float from = stops[k], to = stops[k + 1];
+            const float glide = std::sin(kPi * f);
+            cx += (from + (to - from) * smoother(f)) * 44.0f * travel;
+            cy -= glide * 12.0f * travel;
+            spinA += (to - from) * 0.07f * glide;
             break;
+        }
         case MoveType::HeadBop:
-            spinA += std::cos(beat) * 0.28f * direction * env;
-            cy += std::cos(beat) * 8.0f * env * travel;
+        {
+            const float nod = onBeat(danceBeat) * env;
+            spinA += direction * 0.20f * nod;
+            cy += 10.0f * nod * travel;
             break;
+        }
         case MoveType::Shimmy:
-            spinA += std::sin(beat * 2.0f) * 0.07f * env;
+            cx += std::sin(beat * 2.0f) * 5.0f * env * travel;
+            spinA += std::sin(beat * 2.0f + 0.6f) * 0.05f * env;
             break;
         case MoveType::FigureEight:
         {
             const auto offset = figureEightPath(moveT, w, h);
             cx += offset.x;
             cy += offset.y;
-            spinA += std::sin(moveT * 4.0f * kPi) * 0.30f * env;
-            squashX *= 1.0f - 0.20f * env;
-            squashY *= 1.0f - 0.20f * env;
+            // Face the way he swims: the heading turns the sprite through its
+            // edge like a flip, and he pitches nose-up or down with the path.
+            const float eps = 0.004f;
+            const auto velocity = figureEightPath(juce::jmin(1.0f, moveT + eps), w, h)
+                                - figureEightPath(juce::jmax(0.0f, moveT - eps), w, h);
+            const float speed = velocity.getDistanceFromOrigin();
+            if (speed > 0.01f)
+            {
+                const float ux = velocity.x / speed;
+                squashX *= visibleScale(juce::jlimit(-1.0f, 1.0f, ux * direction * 1.8f), 0.12f);
+                spinA += juce::jlimit(-0.55f, 0.55f, std::atan2(velocity.y, std::abs(velocity.x))) * ux * env;
+            }
             // A short bubble wake makes both lobes legible as he crosses them.
             if (!gentleMotion)
             {
@@ -734,7 +817,7 @@ void KoiFish::paint(juce::Graphics& g)
         }
         case MoveType::Twerk:
         {
-            const float tilt = direction * (0.48f + 0.09f * std::cos(beat)) * env;
+            const float tilt = direction * (0.50f + 0.10f * (2.0f * onBeat(danceBeat, 1.5f) - 1.0f)) * env;
             const float headReach = 8.0f * pixel * squashX;
             spinA += tilt;
             cx += direction * headReach * (1.0f - std::cos(tilt));

@@ -267,6 +267,14 @@ struct KoiMotionChecks
                 }
                 if (frameIndex % snapshotStride == 0 && frameIndex / snapshotStride < 5)
                     sg.drawImage(rendered, juce::Rectangle<float>((frameIndex / snapshotStride) * 200.0f, (move - 1) * 180.0f + 20, 200, 155));
+                if (frameIndex % 4 == 0)
+                {
+                    auto dir = output.getChildFile("frames").getChildFile(juce::String(move));
+                    dir.createDirectory();
+                    juce::FileOutputStream frameStream(dir.getChildFile(juce::String(frameIndex / 4).paddedLeft('0', 3) + ".png"));
+                    frameStream.setPosition(0); frameStream.truncate();
+                    juce::PNGImageFormat().writeImageToStream(rendered, frameStream);
+                }
                 if (move == 2 || move == 8 || move == 9 || move == 10)
                 {
                     auto file = output.getChildFile(juce::String(move == 2 ? "roll-" : move == 8 ? "eight-" : move == 9 ? "twerk-" : "breakdance-") + juce::String(frameIndex).paddedLeft('0', 3) + ".png");
