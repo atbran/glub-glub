@@ -144,6 +144,21 @@ struct EditorShots
         editor->panelWanted = true;
         run(1.0, 124.0, 0.5f);
         shot("panel-open");
+
+        // Wardrobe: level him up in the scratch file and dress him.
+        auto& progress = *editor->progress;
+        progress.addXp(GlubProgress::xpToReach(6) - progress.getXp() + 5.0f);
+        progress.setSkin(2);
+        progress.setHat(2);
+        progress.setChain(true);
+        editor->panel.showTab(ControlPanel::Tab::Glub);
+        run(1.5, 124.0, 0.5f);
+        shot("wardrobe");
+        progress.setSkin(1);
+        progress.setHat(1);
+        editor->panelWanted = false;
+        run(1.2, 124.0, 0.5f);
+        shot("party-hat");
         editor->panelWanted = false;
 
         editor->setSize(1024, 1024);

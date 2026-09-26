@@ -23,6 +23,7 @@ public:
     std::function<void()> onWardrobeChanged;
 
 private:
+    friend struct EditorShots;
     enum class Tab { Tank = 0, Dance, Glub };
     void showTab(Tab t);
     void refreshWardrobe();
