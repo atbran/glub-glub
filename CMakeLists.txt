@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(GlubGlub VERSION 0.1.0)
+project(GlubGlub VERSION 2.0.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -26,13 +26,14 @@ juce_add_plugin(GlubGlub
   PLUGIN_CODE Glub
   FORMATS VST3 Standalone
   PRODUCT_NAME "Glub-Glub"
-  VERSION 0.1.0
+  VERSION 2.0.0
 )
 
 target_sources(GlubGlub PRIVATE
   Source/PluginProcessor.cpp
   Source/PluginEditor.cpp
   Source/DSP/AudioFeatures.cpp
+  Source/DSP/TempoTracker.cpp
   Source/UI/KoiFish.cpp
   Source/UI/Bubbles.cpp
   Source/UI/SpeechBox.cpp
@@ -70,4 +71,10 @@ if(GLUB_BUILD_MOTION_CHECKS)
   target_compile_definitions(KoiMotionChecks PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
   target_link_libraries(KoiMotionChecks PRIVATE juce::juce_gui_basics)
   add_test(NAME koi-motion COMMAND KoiMotionChecks)
+
+  juce_add_console_app(DspChecks PRODUCT_NAME "DspChecks")
+  target_sources(DspChecks PRIVATE tests/DspChecks.cpp Source/DSP/AudioFeatures.cpp Source/DSP/TempoTracker.cpp)
+  target_compile_definitions(DspChecks PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+  target_link_libraries(DspChecks PRIVATE juce::juce_audio_basics)
+  add_test(NAME dsp COMMAND DspChecks)
 endif()

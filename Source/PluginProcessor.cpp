@@ -91,11 +91,17 @@ void GlubGlubProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mid
     vibe.brightness.store(bright);
     vibe.beatPulse.store(pulse);
     vibe.intensity.store(intensity);
-    vibe.barCount.store(-1);
+    vibe.low.store(features.getLow());
+    vibe.mid.store(features.getMid());
+    vibe.high.store(features.getHigh());
+    vibe.kick.store(features.getKick());
 
-    // Host BPM / beat phase (Ableton) — smoothed, fallback -1 when unknown.
+    // Beat grid: the host transport when it is rolling, otherwise the tempo
+    // Glub hears in the audio itself (standalone, or a stopped DAW monitoring input).
     float beatPhase = -1.0f;
     double bpmToStore = 0.0;
+    int bar = -1;
+    int source = VibeState::tempoNone;
     if (auto* playHead = getPlayHead())
     {
         if (auto pos = playHead->getPosition())
@@ -114,14 +120,25 @@ void GlubGlubProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mid
                 double frac = *ppq - std::floor(*ppq);
                 if (frac < 0) frac += 1.0;
                 beatPhase = (float) frac;
-                int bar = (int) std::floor(*ppq / 4.0);
-                vibe.barCount.store(bar);
+                bar = (int) std::floor(*ppq / 4.0);
+                source = VibeState::tempoHost;
             }
             lastPpq = ppq.hasValue() ? *ppq : lastPpq;
         }
     }
+    const auto& tempo = features.getTempo();
+    if (source == VibeState::tempoNone && tempo.isLocked())
+    {
+        beatPhase = tempo.getPhase();
+        bpmToStore = tempo.getBpm();
+        bar = (int) (tempo.getBeatCount() / 4);
+        source = VibeState::tempoDetected;
+    }
+    vibe.barCount.store(bar);
     vibe.beatPhase.store(beatPhase);
     vibe.bpm.store((float) bpmToStore);
+    vibe.tempoSource.store(source);
+    vibe.tempoConfidence.store(tempo.getConfidence());
 }
 
 juce::AudioProcessorEditor* GlubGlubProcessor::createEditor()
