@@ -1,5 +1,6 @@
 #pragma once
 #include <juce_gui_basics/juce_gui_basics.h>
+#include <optional>
 #include <vector>
 
 // Fish-food shaker canister. The component covers the whole tank/water area
@@ -23,17 +24,24 @@ public:
     void setWaterRect(juce::Rectangle<int> r);
     bool isFeeding() const { return feeding; }
 
+    // Pellets in parent coordinates: the koi hunts the nearest, then eats it.
+    std::optional<juce::Point<float>> nearestPellet(juce::Point<float> from) const;
+    bool eatPelletNear(juce::Point<float> mouth, float radius);
+    bool hasPellets() const { return ! pellets.empty(); }
+
     static constexpr int CELL = 4;   // pixel-art cell size
     static constexpr int GRID_W = 12;
     static constexpr int GRID_H = 16;
 
 private:
+    friend struct EditorShots;
     struct Pellet
     {
         juce::Point<float> pos;   // parent coordinates
         juce::Point<float> vel;
         double bornAt = 0.0;
         int shape = 0;            // pellet/flake variation
+        bool resting = false;     // settled on the gravel
     };
 
     juce::Point<int> home { 0, 0 };     // canister top-left, parent coords

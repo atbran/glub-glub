@@ -200,6 +200,36 @@ struct KoiMotionChecks
             check(diner.roam.getDistanceFromOrigin() < 12.0f, "Koi drifts home after dinner");
         }
 
+        // At full energy the tail fan must stay a solid fin, not an outline-only lattice.
+        {
+            KoiFish thrasher;
+            thrasher.setSize(500, 388);
+            float worstSolid = 1.0f;
+            for (int i = 0; i < 240; ++i)
+            {
+                thrasher.setVibe(1.0f, 0.8f, 1.0f, std::fmod(i * 128.0f / 3600.0f, 1.0f), 2, i / 120, 0, 1.0f, 1.0f / 60, 128);
+                std::vector<char> cells;
+                thrasher.buildGrid(cells);
+                int fin = 0, outline = 0;
+                for (int y = 0; y < KoiFish::GRID_H; ++y)
+                    for (int x = 0; x < 9; ++x)
+                    {
+                        const char c = cells[(size_t) (y * KoiFish::GRID_W + x)];
+                        if (c == 'O') ++outline;
+                        else if (c == 'f' || c == '5' || c == '6') ++fin;
+                    }
+                const float solid = fin / (float) juce::jmax(1, fin + outline);
+                if (solid < worstSolid)
+                {
+                    worstSolid = solid;
+                    std::cout << "Tail grid at frame " << i << " (solid " << solid << "):\n";
+                    for (int y = 0; y < KoiFish::GRID_H; ++y)
+                        std::cout << std::string(cells.begin() + y * KoiFish::GRID_W, cells.begin() + (y + 1) * KoiFish::GRID_W) << '\n';
+                }
+            }
+            check(worstSolid > 0.3f, "Tail fan stays solid at full energy");
+        }
+
         const auto output = juce::File::getCurrentWorkingDirectory().getChildFile("build-msvc/motion-review");
         output.createDirectory();
         const char* names[] = { "Worm", "Barrel Roll", "Spin", "Flip", "Shuffle", "Head Bop", "Tail Shimmy", "Figure Eight", "Twerk", "Breakdance" };

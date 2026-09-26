@@ -5,11 +5,13 @@
 #include "UI/KoiFish.h"
 #include "UI/Bubbles.h"
 #include "UI/SpeechBox.h"
-#include "UI/ConfigDrawer.h"
+#include "UI/ControlPanel.h"
 #include "UI/HypeMeter.h"
 #include "UI/DiscoBall.h"
 #include "UI/FoodShaker.h"
 #include "UI/HypeEnvelope.h"
+#include "UI/TankScene.h"
+#include "UI/PixelLookAndFeel.h"
 
 class GlubGlubEditor : public juce::AudioProcessorEditor, public juce::Timer
 {
@@ -26,32 +28,39 @@ public:
     void mouseExit(const juce::MouseEvent& e) override;
 
 private:
-    struct Ripple
-    {
-        float x = 0.0f;
-        float y = 0.0f;
-        float radius = 2.0f;
-        float alpha = 0.85f;
-    };
-    std::vector<Ripple> ripples;
+    friend struct EditorShots;
+    static constexpr int barHeight = 28;
+    static constexpr int speechHeight = 84;
+
+    void layoutPanel();
+    bool trySpeak(const juce::String& line, double now, double cooldown = 14.0);
 
     GlubGlubProcessor& proc;
+    PixelLookAndFeel lnf;
+    juce::TooltipWindow tooltips { this, 700 };
+    TankScene scene;
     KoiFish fish;
     Bubbles bubbles;
     SpeechBox speech;
-    ConfigDrawer drawer;
+    ControlPanel panel;
+    juce::TextButton tankBtn { "tank" };
     HypeMeter hype;
     DiscoBall disco;
     FoodShaker shaker;
     juce::Random rng;
+
     double startTime = 0.0;
     double feedHoldUntil = 0.0;
+    double lastSpokeAt = -100.0;
+    double lastUpdateTime = 0.0;
     float partyGlow = 0.0f;
     float partyHue = 0.55f;
     float lastPhase = -1.0f;
-    float lastGlow = 0.0f;
+    float panelOpen = 0.0f;
+    bool panelWanted = false;
+    int lastTempoSource = 0;
+    int bitesSinceSpeech = 0;
     HypeEnvelope hypeEnvelope;
-    double lastUpdateTime = 0.0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GlubGlubEditor)
 };

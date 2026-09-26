@@ -205,11 +205,18 @@ void KoiFish::setVibe(float e, float b, float p, float bp, int inten, int bar, f
         {
             const auto mouthOffset = mouthPos - juce::Point<float>(fishCx, fishCy);
             desired = *foodTarget - rest - mouthOffset;
-            desired.x = juce::jlimit(-bounds.getWidth() * 0.36f, bounds.getWidth() * 0.36f, desired.x);
-            desired.y = juce::jlimit(-bounds.getHeight() * 0.34f, bounds.getHeight() * 0.36f, desired.y);
-            // Turn around when the food drifts behind the head.
-            if (!isMoveBusy() && ((facingRight && foodTarget->x < fishCx - 30.0f) || (!facingRight && foodTarget->x > fishCx + 30.0f)))
-                triggerMove(MoveType::Flip);
+            // Keep the whole body in the tank, not just the mouth.
+            const float pixel = (float) juce::jmax(1, (int) (juce::jmin(bounds.getWidth(), bounds.getHeight()) / (float) (GRID_W + 10)));
+            const float halfLen = GRID_W * pixel * 0.52f, halfTall = GRID_H * pixel * 0.20f;
+            desired.x = juce::jlimit(halfLen - rest.x, bounds.getWidth() - halfLen - rest.x, desired.x);
+            desired.y = juce::jlimit(halfTall - rest.y, bounds.getHeight() - halfTall * 0.5f - rest.y, desired.y);
+            // Food behind the head: turn around first instead of swimming backwards.
+            const bool behind = (facingRight && foodTarget->x < mouthPos.x - 12.0f) || (!facingRight && foodTarget->x > mouthPos.x + 12.0f);
+            if (behind)
+            {
+                desired.x = roam.x;
+                if (!isMoveBusy()) triggerMove(MoveType::Flip);
+            }
         }
         const float stiffness = chasing ? 26.0f : 5.0f;
         const auto accel = (desired - roam) * stiffness - roamVel * (2.0f * std::sqrt(stiffness));
@@ -383,7 +390,8 @@ void KoiFish::buildGrid(std::vector<char>& grid)
         set((int) j.x - 1, (int) j.y, 'f');
         set((int) j.x - 2, (int) j.y, 'f');
 
-        float wag = (0.35f + 0.45f * energy + 0.9f * tailBurst) * std::sin(phase * 1.12f + 0.8f);
+        // Capped so the upper lobe never swings past vertical at full energy.
+        float wag = juce::jlimit(-0.6f, 0.6f, (0.35f + 0.45f * energy + 0.9f * tailBurst) * std::sin(phase * 1.12f + 0.8f));
 
         auto lobe = [&](float vy)
         {
@@ -393,22 +401,24 @@ void KoiFish::buildGrid(std::vector<char>& grid)
             float c = std::cos(wag), s = std::sin(wag);
             float rdx = dx * c - dy * s, rdy = dx * s + dy * c;
             float px = -rdy, py = rdx;
-            const int L = 9;
-            for (int st = 1; st <= L; ++st)
+            const float L = 9.0f;
+            // Scan-fill the lobe in grid space. Stamping rotated strokes left
+            // holes at steep angles, which the outline pass turned into a lattice.
+            const int x0 = (int) std::floor(j.x - L - 3.0f), x1 = (int) std::ceil(j.x + 3.0f);
+            const int y0 = (int) std::floor(j.y - L - 3.0f), y1 = (int) std::ceil(j.y + L + 3.0f);
+            for (int gy = y0; gy <= y1; ++gy)
             {
-                float fs = (float) st;
-                float halfW = 0.6f + 2.4f * std::sin(kPi * 0.92f * fs / (float) L);
-                float cxg = j.x + rdx * fs, cyg = j.y + rdy * fs;
-                int wHalf = (int) std::round(halfW);
-                for (int o = -wHalf; o <= wHalf; ++o)
+                for (int gx = x0; gx <= x1; ++gx)
                 {
-                    int gx = (int) std::round(cxg + px * (float) o);
-                    int gy = (int) std::round(cyg + py * (float) o);
-                    char cc = 'f';
-                    float side = py * (float) o;
-                    if (side < -0.2f) cc = '5';
-                    else if (side > 0.2f) cc = '6';
-                    if (st == L && std::abs(o) == wHalf) cc = '6';
+                    const float ox = (float) gx - j.x, oy = (float) gy - j.y;
+                    const float along = ox * rdx + oy * rdy;
+                    const float across = ox * px + oy * py;
+                    if (along < 0.5f || along > L + 0.5f) continue;
+                    const float halfW = 0.6f + 2.4f * std::sin(kPi * 0.92f * juce::jmin(along, L) / L);
+                    if (std::abs(across) > halfW + 0.35f) continue;
+                    const float side = py * across;
+                    char cc = side < -0.2f ? '5' : side > 0.2f ? '6' : 'f';
+                    if (along > L - 0.5f && std::abs(across) > halfW - 0.8f) cc = '6';
                     set(gx, gy, cc);
                 }
             }

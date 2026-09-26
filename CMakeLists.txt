@@ -37,7 +37,8 @@ target_sources(GlubGlub PRIVATE
   Source/UI/KoiFish.cpp
   Source/UI/Bubbles.cpp
   Source/UI/SpeechBox.cpp
-  Source/UI/ConfigDrawer.cpp
+  Source/UI/ControlPanel.cpp
+  Source/UI/TankScene.cpp
   Source/UI/HypeMeter.cpp
   Source/UI/DiscoBall.cpp
   Source/UI/FoodShaker.cpp
@@ -77,4 +78,13 @@ if(GLUB_BUILD_MOTION_CHECKS)
   target_compile_definitions(DspChecks PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
   target_link_libraries(DspChecks PRIVATE juce::juce_audio_basics)
   add_test(NAME dsp COMMAND DspChecks)
+
+  # Offscreen editor snapshots: the real processor + editor fed a synthetic groove.
+  juce_add_console_app(EditorShots PRODUCT_NAME "EditorShots")
+  target_sources(EditorShots PRIVATE tests/EditorShots.cpp)
+  target_compile_definitions(EditorShots PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+  target_link_libraries(EditorShots PRIVATE GlubGlub)
+  # Reuse the plugin's compiled JUCE modules: borrow its include paths and defines only.
+  target_include_directories(EditorShots PRIVATE $<TARGET_PROPERTY:GlubGlub,INCLUDE_DIRECTORIES>)
+  target_compile_definitions(EditorShots PRIVATE $<TARGET_PROPERTY:GlubGlub,COMPILE_DEFINITIONS>)
 endif()

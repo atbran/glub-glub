@@ -23,6 +23,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout GlubGlubProcessor::createPar
     p.push_back(std::make_unique<juce::AudioParameterBool>("bubblesOn", "Bubbles", true));
     p.push_back(std::make_unique<juce::AudioParameterBool>("glassesOn", "Deal With It Glasses", false));
     p.push_back(std::make_unique<juce::AudioParameterBool>("gentleMotion", "Gentle Motion", false));
+    p.push_back(std::make_unique<juce::AudioParameterChoice>(
+        "theme", "Tank Theme", juce::StringArray { "Lagoon", "Midnight", "Sunset" }, 0));
+    p.push_back(std::make_unique<juce::AudioParameterBool>("tankMates", "Tank Mates", true));
     return { p.begin(), p.end() };
 }
 

@@ -10,6 +10,7 @@ namespace
     constexpr unsigned LIGHT   = 0xFFF08A5D;   // highlight
     constexpr unsigned LABEL   = 0xFFF5EBD0;   // cream label
     constexpr unsigned LID     = 0xFF4A4F57;   // metal lid
+    constexpr double kPelletLife = 12.0;       // seconds before uneaten food dissolves
 
     // 12 x 16 art. '.' transparent, O outline, M main, L light,
     // A label cream, F label mark (tiny fish), I lid metal, H lid highlight.
@@ -75,17 +76,22 @@ void FoodShaker::paint(juce::Graphics& g)
     for (auto& p : pellets)
     {
         double age = (lastFrameTime - p.bornAt);
-        float a = (float) juce::jlimit(0.0, 1.0, 1.0 - age / 5.0);
+        float a = (float) juce::jlimit(0.0, 1.0, (kPelletLife - age) / 1.5);
         juce::Colour c = p.shape == 0 ? juce::Colour(0xFFFFC93C)
                        : p.shape == 1 ? juce::Colour(0xFFFF8A3D)
                                       : juce::Colour(0xFFC97B3C);
-        g.setColour(c.withAlpha(a));
         int px = (int) std::lround(p.pos.x) - origin.x;
         int py = (int) std::lround(p.pos.y) - origin.y;
-        // 3x3 / 2x3 / 4x2 flake shapes, all on the integer grid
-        if (p.shape == 0)      g.fillRect(px - 1, py - 1, 3, 3);
-        else if (p.shape == 1) g.fillRect(px - 1, py - 1, 2, 3);
-        else                   g.fillRect(px - 2, py, 4, 2);
+        // Outlined pixel flakes (square / chunky / flat) so they read on sand and water.
+        const juce::Rectangle<int> flake = p.shape == 0 ? juce::Rectangle<int>(px - 3, py - 3, 6, 6)
+                                         : p.shape == 1 ? juce::Rectangle<int>(px - 2, py - 3, 5, 7)
+                                                        : juce::Rectangle<int>(px - 4, py - 2, 8, 4);
+        g.setColour(juce::Colour(OUTLINE).withAlpha(a));
+        g.fillRect(flake.expanded(1));
+        g.setColour(c.withAlpha(a));
+        g.fillRect(flake);
+        g.setColour(juce::Colours::white.withAlpha(a * 0.5f));
+        g.fillRect(flake.getX(), flake.getY(), 2, 2);
     }
 
     // canister, integer-snapped cells
@@ -177,19 +183,21 @@ void FoodShaker::update(double nowSec)
     lastFrameTime = nowSec;
     if (firstFrame) return;
 
-    // pellet physics
+    // pellet physics: flakes sink slowly, then settle on the gravel
+    const float floorY = (float) waterRect.getBottom() - waterRect.getHeight() * 0.1f;
     for (auto& p : pellets)
     {
-        p.vel.y = juce::jmin(p.vel.y + 240.0f * dt, 140.0f);
+        if (p.resting) continue;
+        p.vel.y = juce::jmin(p.vel.y + 240.0f * dt, 70.0f);
         p.vel.x *= 0.995f;
         p.pos += p.vel * dt;
         p.pos.x += std::sin((float) (nowSec * 3.0 + p.bornAt)) * 6.0f * dt;   // drift
+        if (p.pos.y >= floorY) { p.pos.y = floorY; p.resting = true; }
     }
     pellets.erase(std::remove_if(pellets.begin(), pellets.end(),
                                  [&](const Pellet& p)
                                  {
-                                     return nowSec - p.bornAt > 5.0
-                                         || p.pos.y > waterRect.getBottom() + 10.0f;
+                                     return nowSec - p.bornAt > kPelletLife;
                                  }),
                   pellets.end());
 
@@ -227,6 +235,32 @@ void FoodShaker::setHome(juce::Point<int> homeTopLeft)
         canPos = home;
         homeInit = true;
     }
+}
+
+std::optional<juce::Point<float>> FoodShaker::nearestPellet(juce::Point<float> from) const
+{
+    std::optional<juce::Point<float>> best;
+    float bestDistance = 1.0e9f;
+    for (const auto& p : pellets)
+    {
+        const float d = p.pos.getDistanceFrom(from);
+        if (d < bestDistance) { bestDistance = d; best = p.pos; }
+    }
+    return best;
+}
+
+bool FoodShaker::eatPelletNear(juce::Point<float> mouth, float radius)
+{
+    for (auto it = pellets.begin(); it != pellets.end(); ++it)
+    {
+        if (it->pos.getDistanceFrom(mouth) <= radius)
+        {
+            pellets.erase(it);
+            repaint();
+            return true;
+        }
+    }
+    return false;
 }
 
 void FoodShaker::setWaterRect(juce::Rectangle<int> r) { waterRect = r; }
