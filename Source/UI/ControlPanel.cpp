@@ -47,8 +47,9 @@ ControlPanel::ControlPanel(juce::AudioProcessorValueTreeState& s) : state(s)
         addAndMakeVisible(b);
     }
 
-    const char* moves[] = { "worm", "roll", "spin", "flip", "shuffle", "head bop", "shimmy", "figure 8", "twerk", "breakdance" };
-    for (int i = 0; i < 10; ++i)
+    const char* moves[KoiFish::numMoves] = { "worm", "roll", "spin", "flip", "shuffle", "head bop", "shimmy", "figure 8",
+                                             "twerk", "breakdance", "loop", "moonwalk", "tail walk" };
+    for (int i = 0; i < KoiFish::numMoves; ++i)
     {
         auto& b = moveBtns[(size_t) i];
         b.setButtonText(moves[i]);
@@ -66,7 +67,7 @@ void ControlPanel::syncFromState(KoiFish::MoveType activeMove)
     const int theme = (int) state.getRawParameterValue("theme")->load();
     for (int i = 0; i < 3; ++i)
         themeBtns[(size_t) i].setToggleState(i == theme, juce::dontSendNotification);
-    for (int i = 0; i < 10; ++i)
+    for (int i = 0; i < KoiFish::numMoves; ++i)
         moveBtns[(size_t) i].setToggleState(static_cast<int>(activeMove) == i + 1, juce::dontSendNotification);
 }
 
@@ -110,11 +111,11 @@ void ControlPanel::resized()
 
     b.removeFromTop(4);
     danceLabel.setBounds(b.removeFromTop(18));
-    for (int row = 0; row < 2; ++row)
+    const int bw = b.getWidth() / 5;
+    for (int row = 0; row * 5 < KoiFish::numMoves; ++row)
     {
         auto r = b.removeFromTop(26);
-        const int bw = r.getWidth() / 5;
-        for (int i = 0; i < 5; ++i)
-            moveBtns[(size_t) (row * 5 + i)].setBounds(r.removeFromLeft(bw).reduced(2, 1));
+        for (int i = row * 5; i < juce::jmin(KoiFish::numMoves, row * 5 + 5); ++i)
+            moveBtns[(size_t) i].setBounds(r.removeFromLeft(bw).reduced(2, 1));
     }
 }

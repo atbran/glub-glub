@@ -1,5 +1,6 @@
 #include "../Source/UI/KoiFish.h"
 #include "../Source/UI/HypeEnvelope.h"
+#include "../Source/UI/DiscoBall.h"
 #include <iostream>
 
 struct KoiMotionChecks
@@ -230,20 +231,69 @@ struct KoiMotionChecks
             check(worstSolid > 0.3f, "Tail fan stays solid at full energy");
         }
 
+        // Maxed-out hype: showstopper moves every bar, and a breakdance turns up on its own.
+        {
+            KoiFish raver;
+            raver.setSize(500, 388);
+            bool broke = false, looped = false, tailWalked = false;
+            for (int i = 0; i < 60 * 60 && !(broke && looped && tailWalked); ++i)
+            {
+                const float phase = std::fmod(i * 128.0f / 3600.0f, 1.0f);
+                raver.setVibe(0.9f, 0.7f, 0.5f, phase, 2, (int) (i * 128.0f / 3600.0f) / 4, 0, 1.0f, 1.0f / 60, 128);
+                broke |= raver.isBreakdancing();
+                looped |= raver.getActiveMove() == KoiFish::MoveType::Loop;
+                tailWalked |= raver.getActiveMove() == KoiFish::MoveType::TailWalk;
+            }
+            check(broke, "Max hype breakdances on its own within a minute");
+            check(looped && tailWalked, "Max hype unlocks the loop and tail walk");
+            KoiFish chill;
+            bool chillBroke = false;
+            for (int i = 0; i < 60 * 60; ++i)
+            {
+                chill.setVibe(0.5f, 0.5f, 0.3f, std::fmod(i * 128.0f / 3600.0f, 1.0f), 1, (int) (i * 128.0f / 3600.0f) / 4, 0, 0.6f, 1.0f / 60, 128);
+                chillBroke |= chill.isBreakdancing();
+            }
+            check(!chillBroke, "Moderate hype never breakdances");
+        }
+
+        // Disco ball: a wobbling hype level must not make it pop in and out.
+        {
+            DiscoBall ball;
+            ball.setSize(200, 160);
+            int toggles = 0;
+            bool last = false;
+            for (int i = 0; i < 60 * 40; ++i)
+            {
+                const double now = i / 60.0;
+                const float wobble = 0.62f + 0.18f * std::sin((float) now * 2.0f); // 0.44..0.80 every ~3 s
+                ball.update(i < 60 * 5 ? 0.95f : wobble, now);
+                const bool showing = ball.isShowing();
+                if (showing != last) { ++toggles; last = showing; }
+            }
+            std::cout << "Disco toggles over 40 s of wobbling hype: " << toggles << '\n';
+            check(toggles <= 1, "Disco ball stays put through hype wobble");
+            DiscoBall brief;
+            brief.setSize(200, 160);
+            for (int i = 0; i < 30; ++i) brief.update(0.9f, i / 60.0);
+            for (int i = 30; i < 120; ++i) brief.update(0.3f, i / 60.0);
+            check(!brief.isShowing(), "Half-second hype spike does not summon the disco ball");
+        }
+
         const auto output = juce::File::getCurrentWorkingDirectory().getChildFile("build-msvc/motion-review");
         output.createDirectory();
-        const char* names[] = { "Worm", "Barrel Roll", "Spin", "Flip", "Shuffle", "Head Bop", "Tail Shimmy", "Figure Eight", "Twerk", "Breakdance" };
-        juce::Image sheet(juce::Image::RGB, 1000, 10 * 180, true, juce::SoftwareImageType());
+        const char* names[] = { "Worm", "Barrel Roll", "Spin", "Flip", "Shuffle", "Head Bop", "Tail Shimmy", "Figure Eight", "Twerk", "Breakdance",
+                                "Loop-de-loop", "Moonwalk", "Tail Walk" };
+        juce::Image sheet(juce::Image::RGB, 1000, KoiFish::numMoves * 180, true, juce::SoftwareImageType());
         juce::Graphics sg(sheet);
         sg.fillAll(juce::Colour(0xff183448));
-        for (int move = 1; move <= 10; ++move)
+        for (int move = 1; move <= KoiFish::numMoves; ++move)
         {
             KoiFish dancer;
             dancer.setSize(500, 388);
             dancer.setGlassesOn(true);
             dancer.shadesT = 1;
             dancer.triggerMove(static_cast<KoiFish::MoveType>(move));
-            const bool longMove = move == 8 || move == 9;
+            const bool longMove = move == 8 || move == 9 || move == 13;
             const int frameCount = longMove ? 264 : 132;
             const int snapshotStride = longMove ? 52 : 26;
             for (int frameIndex = 0; frameIndex < frameCount; ++frameIndex)

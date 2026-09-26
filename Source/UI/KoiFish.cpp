@@ -112,6 +112,7 @@ float KoiFish::moveBeats(MoveType move)
         case MoveType::Flip: return 1.0f;
         case MoveType::FigureEight:
         case MoveType::Twerk: return 8.0f;
+        case MoveType::TailWalk: return 6.0f;
         default: return 4.0f;
     }
 }
@@ -164,6 +165,7 @@ void KoiFish::setVibe(float e, float b, float p, float bp, int inten, int bar, f
     sleepy = calmTime > 6.0f;
     moveCooldown = juce::jmax(0.0f, moveCooldown - dt);
     breakdanceCooldown = juce::jmax(0.0f, breakdanceCooldown - dt);
+    maxHypeTime = hype > 0.88f ? maxHypeTime + dt : juce::jmax(0.0f, maxHypeTime - 2.0f * dt);
     mouseFlipCooldown = juce::jmax(0.0f, mouseFlipCooldown - dt);
     startleT = juce::jmax(0.0f, startleT - dt * 2.2f);
 
@@ -188,12 +190,22 @@ void KoiFish::setVibe(float e, float b, float p, float bp, int inten, int bar, f
     if (effectiveBar != lastDanceBar)
     {
         lastDanceBar = effectiveBar;
-        if (!chasing && !isMoveBusy() && moveCooldown <= 0.0f && effectiveBar % 2 == 0 && (energy > 0.16f || feed > 0.5f))
+        // Pegged hype (held a few seconds) unlocks the showstoppers, every bar.
+        const bool maxedOut = !gentleMotion && maxHypeTime > 3.0f;
+        if (!chasing && !isMoveBusy() && moveCooldown <= 0.0f && (effectiveBar % 2 == 0 || maxedOut)
+            && (energy > 0.16f || feed > 0.5f))
         {
-            const MoveType mellow[] = { MoveType::HeadBop, MoveType::Shuffle, MoveType::Shimmy, MoveType::FigureEight };
-            const MoveType lively[] = { MoveType::Worm, MoveType::Twerk, MoveType::Roll, MoveType::Shuffle, MoveType::Spin, MoveType::FigureEight, MoveType::Shimmy, MoveType::HeadBop };
+            const MoveType mellow[] = { MoveType::HeadBop, MoveType::Shuffle, MoveType::Shimmy, MoveType::FigureEight, MoveType::Moonwalk };
+            const MoveType lively[] = { MoveType::Worm, MoveType::Twerk, MoveType::Roll, MoveType::Moonwalk, MoveType::Spin,
+                                        MoveType::FigureEight, MoveType::Shimmy, MoveType::Loop, MoveType::HeadBop, MoveType::Shuffle };
+            const MoveType intense[] = { MoveType::Loop, MoveType::TailWalk, MoveType::Roll, MoveType::Twerk, MoveType::Spin, MoveType::Worm };
             const bool big = !gentleMotion && (hype > 0.72f || feed > 0.5f);
-            triggerMove(big ? lively[danceIndex % 8] : mellow[danceIndex % 4]);
+            if (maxedOut && breakdanceCooldown <= 0.0f && choreoRng.nextFloat() < 0.35f)
+                triggerMove(MoveType::Breakdance);
+            else if (maxedOut)
+                triggerMove(intense[danceIndex % 6]);
+            else
+                triggerMove(big ? lively[danceIndex % 10] : mellow[danceIndex % 5]);
             ++danceIndex;
         }
     }
@@ -286,7 +298,7 @@ void KoiFish::triggerMove(MoveType move)
     if (move == MoveType::Breakdance)
     {
         breakdanceJustTriggered = true;
-        breakdanceCooldown = 10.0f;
+        breakdanceCooldown = 16.0f; // rare enough to stay a showstopper
     }
 }
 
@@ -364,10 +376,25 @@ void KoiFish::buildGrid(std::vector<char>& grid)
                 wy += (-2.0f + 5.5f * (2.0f * onBeat(danceBeat, 1.5f) - 1.0f)) * std::pow(1.0f - u, 1.6f) * envelope;
                 break;
             case MoveType::Shimmy:
-                // See-saw shake twice a beat: head and tail opposite, middle steady.
-                wy += envelope * (5.6f * std::sin(4.0f * kPi * danceBeat) * std::cos(kPi * u)
-                                  + 1.2f * std::sin(4.0f * kPi * danceBeat - u * 6.0f));
+                // Shimmy down, shimmy up: fast shivers ripple head to tail
+                // (four per beat), strongest at the tail.
+                wy += envelope * (0.9f + 1.0f * (1.0f - u)) * std::sin(moveT * 32.0f * kPi - u * 7.0f);
                 break;
+            case MoveType::Loop:
+                // Body arcs toward the loop's centre (local "up") while he swims round.
+                wy += -4.5f * envelope * curlShape + 1.8f * envelope * std::sin(moveT * 12.0f * kPi - u * 5.0f);
+                break;
+            case MoveType::Moonwalk:
+                // The joke: the tail swims forward hard while he slides backwards.
+                wy += 3.4f * envelope * (0.35f + 0.65f * (1.0f - u)) * std::sin(moveT * 16.0f * kPi - u * 4.4f);
+                break;
+            case MoveType::TailWalk:
+            {
+                // Frantic tail paddling, head steady above the water line.
+                const float stand = smoother(moveT / 0.18f) * (1.0f - smoother((moveT - 0.82f) / 0.18f)) * gentleK;
+                wy += stand * 3.2f * std::pow(1.0f - u, 1.5f) * std::sin(moveT * 48.0f * kPi - u * 6.0f);
+                break;
+            }
             case MoveType::HeadBop:
             {
                 const float nod = onBeat(danceBeat) * envelope;
@@ -779,9 +806,64 @@ void KoiFish::paint(juce::Graphics& g)
             break;
         }
         case MoveType::Shimmy:
-            cx += std::sin(beat * 2.0f) * 5.0f * env * travel;
-            spinA += std::sin(beat * 2.0f + 0.6f) * 0.05f * env;
+        {
+            // Sink over two beats, rise over two, shivering the whole way.
+            const float shiver = std::sin(moveT * 32.0f * kPi);
+            cy += 36.0f * std::pow(std::sin(kPi * moveT), 2.0f) * travel;
+            cx += shiver * 2.5f * env * travel;
+            spinA += direction * 0.06f * env * std::sin(moveT * 4.0f * kPi) + 0.045f * env * std::sin(moveT * 32.0f * kPi + 1.0f);
+            squashY *= 1.0f - 0.07f * env;
+            squashX *= 1.0f + 0.04f * env;
             break;
+        }
+        case MoveType::Loop:
+        {
+            // Loop-de-loop: forward, up and over (upside down at the top), back down.
+            const float theta = 2.0f * kPi * smoother((moveT - 0.12f) / 0.76f);
+            const float radius = 50.0f * travel;
+            cx += direction * radius * std::sin(theta);
+            cy -= radius * (1.0f - std::cos(theta));
+            spinA -= direction * theta;
+            if (!gentleMotion)
+            {
+                // Bubble wake traced by the tail around the loop.
+                juce::Graphics::ScopedSaveState wakeState(g);
+                for (int i = 1; i <= 26; ++i)
+                {
+                    const float past = 2.0f * kPi * smoother((moveT - (float) i * 0.012f - 0.12f) / 0.76f);
+                    if (past <= 0.0f) break;
+                    const float alpha = 0.26f * env * (1.0f - (float) i / 27.0f);
+                    const float px = w * 0.5f + direction * radius * std::sin(past);
+                    const float py = h * 0.52f - radius * (1.0f - std::cos(past));
+                    g.setColour(juce::Colour(0xffa6dde6).withAlpha(alpha));
+                    g.fillEllipse(px - 2.5f, py - 2.5f, 5, 5);
+                }
+            }
+            break;
+        }
+        case MoveType::Moonwalk:
+        {
+            // Three backward glides on the beat, then one beat to swim home.
+            const float beats = juce::jlimit(0.0f, 3.999f, moveT * 4.0f);
+            const int k = (int) beats;
+            const float f = beats - (float) k;
+            const float along = k < 3 ? ((float) k + smoother(f / 0.6f)) / 3.0f : 1.0f - smoother(f);
+            cx -= direction * along * 76.0f * travel;
+            const float step = k < 3 ? std::sin(kPi * juce::jmin(1.0f, f / 0.6f)) : 0.0f;
+            cy -= step * 6.0f * travel;
+            spinA -= direction * (0.10f * env + 0.05f * step);
+            break;
+        }
+        case MoveType::TailWalk:
+        {
+            // Dolphin tail-walk: stand up on the tail and skitter back and forth.
+            const float stand = smoother(moveT / 0.18f) * (1.0f - smoother((moveT - 0.82f) / 0.18f));
+            spinA -= direction * (0.5f * kPi - 0.14f) * stand;
+            cy -= 22.0f * stand * travel;
+            cx -= direction * 58.0f * std::sin(2.0f * kPi * moveT) * stand * travel;
+            cx += std::sin(moveT * 24.0f * kPi) * 2.0f * stand;
+            break;
+        }
         case MoveType::FigureEight:
         {
             const auto offset = figureEightPath(moveT, w, h);
@@ -923,6 +1005,24 @@ void KoiFish::paint(juce::Graphics& g)
     const int msx = facingRight ? mouthGX : GRID_W - 1 - mouthGX;
     mouthPos = juce::Point<float>(ox + (msx + 0.5f) * pixel, oy + (mouthGY + 0.5f) * pixel).transformedBy(fishTransform);
     floorContactPos = mouthPos;
+
+    // Tail-walk splashes kick up from the tail tip while he stands.
+    if (doing(MoveType::TailWalk) && !gentleMotion)
+    {
+        const float stand = smoother(moveT / 0.18f) * (1.0f - smoother((moveT - 0.82f) / 0.18f));
+        const int tipX = facingRight ? 1 : GRID_W - 2;
+        const auto tip = juce::Point<float>(ox + (tipX + 0.5f) * pixel, oy + 15.5f * pixel).transformedBy(fishTransform);
+        for (int k = 0; k < 6; ++k)
+        {
+            const float life = std::fmod((float) time * 2.6f + (float) k / 6.0f, 1.0f);
+            const float side = (k % 2 == 0 ? 1.0f : -1.0f) * (6.0f + 22.0f * life);
+            const float px = tip.x + side;
+            const float py = tip.y - std::sin(kPi * life) * 20.0f + 4.0f;
+            const float drop = juce::jmax(2.0f, pixel * 0.45f);
+            g.setColour(juce::Colour(0xFFBEE9E8).withAlpha(0.8f * stand * (1.0f - life)));
+            g.fillRect(px - drop * 0.5f, py - drop * 0.5f, drop, drop);
+        }
+    }
 
     if (doing(MoveType::Breakdance) && !gentleMotion && moveT >= 0.22f && moveT <= 0.70f)
     {

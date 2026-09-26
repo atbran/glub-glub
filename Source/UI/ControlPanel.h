@@ -14,7 +14,7 @@ public:
     void resized() override;
     void paint(juce::Graphics& g) override;
 
-    static constexpr int panelHeight = 226;
+    static constexpr int panelHeight = 254;
     void syncFromState(KoiFish::MoveType activeMove);
 
     std::function<void(KoiFish::MoveType)> onMoveTriggered;
@@ -25,7 +25,7 @@ private:
     juce::Label speechLabel, sensLabel, hueLabel, danceLabel, themeLabel;
     juce::ToggleButton bubblesBtn { "bubbles" }, glassesBtn { "shades" }, gentleBtn { "gentle" }, matesBtn { "tank mates" };
     std::array<juce::TextButton, 3> themeBtns;
-    std::array<juce::TextButton, 10> moveBtns;
+    std::array<juce::TextButton, KoiFish::numMoves> moveBtns;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> speechAtt, sensAtt, hueAtt;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> bubblesAtt, glassesAtt, gentleAtt, matesAtt;
 };

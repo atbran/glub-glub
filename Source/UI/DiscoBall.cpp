@@ -20,8 +20,8 @@ void DiscoBall::update(float hypeLevel, double nowSec)
 
     if (!showing)
     {
-        aboveTime = level >= 0.70f ? aboveTime + dt : 0.0f;
-        if (aboveTime >= 0.25f)
+        aboveTime = level >= 0.74f ? aboveTime + dt : juce::jmax(0.0f, aboveTime - dt * 0.5f);
+        if (aboveTime >= 1.2f)
         {
             showing = true;
             shownAt = nowSec;
@@ -31,8 +31,10 @@ void DiscoBall::update(float hypeLevel, double nowSec)
     }
     else
     {
-        belowTime = level < 0.65f ? belowTime + dt : 0.0f;
-        if (belowTime >= 0.85f)
+        // Brief dips mid-song don't count: the party ends only after a real lull,
+        // and never within eight seconds of the ball dropping in.
+        belowTime = level < 0.50f ? belowTime + dt : juce::jmax(0.0f, belowTime - dt);
+        if (belowTime >= 3.0f && nowSec - shownAt >= 8.0)
         {
             showing = false;
             belowTime = 0.0f;

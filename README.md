@@ -21,8 +21,15 @@ and throws a full disco party when the music gets wild. Run the standalone
 - **Every dance move rebuilt** (except the Worm, which was already perfect). Each move now
   bends the pixel body itself with a smooth envelope, one gesture per beat, like the Worm:
   a true belly-up barrel roll, a C-curl pirouette, beat-stepped shuffles, a head-banging
-  bop, a see-saw shimmy, a figure eight that turns to face where it's going, and a
+  bop, a shimmy-down-shimmy-up, a figure eight that turns to face where it's going, and a
   visible breakdance headspin.
+- **New moves:** loop-de-loop (with a bubble wake), moonwalk (slides backwards while his tail
+  swims forwards), and a dolphin tail walk with splashes.
+- **Max hype = showstoppers.** Once hype has been pegged for a few seconds he dances every bar
+  from an intense set (loop, tail walk, roll, twerk, spin, worm), and breakdances on his own
+  now and then, at most every 16 s.
+- **Steadier disco ball.** It needs sustained hype to drop in, stays at least 8 s, and only
+  leaves after a real lull, so it no longer pops in and out.
 - **A living tank.** Pixel-art water, sand, rocks, coral and a sunken chest. Seaweed pumps with
   the bass and snaps on kicks, coral glows with the mids, and light rays and plankton shimmer
   with the highs. The chest burps a bubble every eighth kick.
@@ -42,7 +49,7 @@ and throws a full disco party when the music gets wild. Run the standalone
 - **Transparent audio passthrough** — zero DSP on your sound, zero latency added, any channel count
 - **Kohaku pixel koi** — white body, orange-red patches, sumi spots, 3-tone shading for a near-3D pixel look
 - **Beat-locked dancing** — bobs exactly on quarter notes via the host BPM hook (Ableton etc.); free-dances from audio analysis when no BPM is available
-- **Ten dance moves** — worm, barrel roll, spin, flip, shuffle, head bop, tail shimmy, figure eight, a beat-synced twerk, and a breakdance headspin-to-freeze. Automatic choreography gives bigger tricks room to breathe; manual requests queue after the current move.
+- **Thirteen dance moves** — worm, barrel roll, spin, flip, shuffle, head bop, shimmy, figure eight, a beat-synced twerk, a breakdance headspin-to-freeze, a loop-de-loop, a moonwalk, and a dolphin tail walk. Automatic choreography gives bigger tricks room to breathe; manual requests queue after the current move.
 - **Connected pixel rendering** — the body and glasses share one transform, keeping stretched pixels connected and the glasses attached through rolls and flips.
 - **Party tier** — pixel disco ball (rotating facets, sweeping specular highlight, twinkling rim stars) at medium hype, beat-stepped RGB water tint at high hype (smooth drift when no BPM)
 - **Idle life** — mouth bubbles, breathing, sleepy ZZZ mode after ~6 seconds of silence
@@ -95,7 +102,7 @@ the animation engine.
   - *hue* — fine water colour shift on top of the theme
   - *tank* — Lagoon / Midnight / Sunset
   - *bubbles*, *shades* (Deal With It glasses), *gentle* (less travel, no full rotations), *tank mates*
-  - *dance!* — ten move buttons; a move you click waits for the current one to land and starts on the next downbeat
+  - *dance!* — thirteen move buttons; a move you click waits for the current one to land and starts on the next downbeat
 
 Moves pick up a downbeat when host timing is available. Rolls, spins, and worms
 span four beats; the twerk and full figure eight span eight. The whole-body bounce

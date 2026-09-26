@@ -7,7 +7,9 @@
 class KoiFish : public juce::Component
 {
 public:
-    enum class MoveType { None, Worm, Roll, Spin, Flip, Shuffle, HeadBop, Shimmy, FigureEight, Twerk, Breakdance };
+    enum class MoveType { None, Worm, Roll, Spin, Flip, Shuffle, HeadBop, Shimmy, FigureEight, Twerk, Breakdance,
+                          Loop, Moonwalk, TailWalk };
+    static constexpr int numMoves = 13;
 
     KoiFish();
     void setVibe(float energy, float brightness, float pulse, float beatPhase, int intensity, int barCount, float feedBoost, float hypeLevel = 0.0f, float deltaSeconds = 1.0f / 60.0f, float bpm = 120.0f);
@@ -63,7 +65,8 @@ private:
     float moveT = 0.0f;
     MoveType queuedMove = MoveType::None;
 
-    float breakdanceCooldown = 0.0f;
+    float breakdanceCooldown = 0.0f, maxHypeTime = 0.0f;
+    juce::Random choreoRng { 1234 };
     bool breakdanceJustTriggered = false;
     juce::Point<float> floorContactPos { 0, 0 };
 
